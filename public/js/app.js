@@ -390,7 +390,7 @@ function checkChallengePopup(state) {
     <div class="popup-icon">${challengerLost ? '❌' : '✅'}</div>
     <div class="popup-text">
       <strong>Là t'abuses !</strong><br>
-      ${challenger} challenge ${guested}<br>
+      ${challenger} challenge ${guessed}<br>
       <span class="popup-detail">Supposition: ${lastLog.guessValue} · Réponse: ${lastLog.answer}</span><br>
       <span class="popup-result ${challengerLost ? 'text-red' : 'text-green'}">
         ${challengerLost ? `${challenger} se trompe ! +${lastLog.pts} pts` : `${guessed} s'est trompé ! +${lastLog.pts} pts`}
