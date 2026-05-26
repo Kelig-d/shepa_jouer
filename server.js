@@ -192,18 +192,7 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', async () => {
     console.log(`Client disconnected: ${socket.id}`);
-    // Auto-leave all games on disconnect
-    const rooms = [...socket.rooms].filter((r) => r.length > 10);
-    for (const gameId of rooms) {
-      try {
-        const state = await gameEngine.leaveGame(gameId, socket.id);
-        if (state) {
-          emitGameUpdate(io, gameId);
-        }
-      } catch (e) {
-        // Game might already be deleted
-      }
-    }
+    // Player can reconnect via reconnectGame — don't remove them
   });
 });
 

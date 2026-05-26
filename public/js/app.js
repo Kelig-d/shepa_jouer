@@ -301,6 +301,16 @@ function renderGame(state) {
     doubleDownBtn.disabled = true;
   }
 
+  const lastGuess = $('last-guess-info');
+  if (state.lastGuessValue !== null && state.lastGuesserId) {
+    const guesser = state.players.find((p) => p.id === state.lastGuesserId);
+    lastGuess.classList.remove('hidden');
+    $('last-guess-value').textContent = state.lastGuessValue;
+    $('last-guess-player').textContent = guesser ? guesser.name : 'Inconnu';
+  } else {
+    lastGuess.classList.add('hidden');
+  }
+
   renderTable(state, currentPlayerId);
 
   renderLogs(state);
@@ -388,6 +398,7 @@ function checkChallengePopup(state) {
     </div>
   `;
   popup.classList.remove('hidden');
+  void popup.offsetHeight;
   popup.classList.remove('popup-hide');
   popup.classList.add('popup-show');
 
