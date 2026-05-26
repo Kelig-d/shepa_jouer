@@ -151,19 +151,6 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('pilePoil', async ({ gameId }, callback) => {
-    try {
-      const result = await gameEngine.pilePoil(gameId, socket.id);
-      emitGameUpdate(io, gameId);
-      if (result.state.status === 'ended') {
-        io.to(gameId).emit('gameEnded', { reason: result.state.logs[result.state.logs.length - 1] });
-      }
-      if (callback) callback({ success: true, ...result });
-    } catch (err) {
-      if (callback) callback({ success: false, error: err.message });
-    }
-  });
-
   socket.on('leaveGame', async ({ gameId }, callback) => {
     try {
       const state = await gameEngine.leaveGame(gameId, socket.id);
@@ -172,6 +159,22 @@ io.on('connection', (socket) => {
         emitGameUpdate(io, gameId);
       }
       if (callback) callback({ success: true });
+    } catch (err) {
+      if (callback) callback({ success: false, error: err.message });
+    }
+  });
+
+  socket.on('reconnectGame', async ({ gameId, playerName }, callback) => {
+    try {
+      const state = await gameEngine.getGame(gameId);
+      if (!state) throw new Error('Partie introuvable');
+      const player = state.players.find((p) => p.name === playerName);
+      if (!player) throw new Error('Joueur introuvable');
+      player.id = socket.id;
+      socket.join(gameId);
+      await gameEngine.saveGame(state);
+      emitGameUpdate(io, gameId);
+      if (callback) callback({ success: true, gameId, playerId: socket.id });
     } catch (err) {
       if (callback) callback({ success: false, error: err.message });
     }

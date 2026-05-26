@@ -30,9 +30,6 @@
             <label class="checkbox-label">
               <input type="checkbox" id="variant-double"> "C'est toi qui abuses !" (Double défi)
             </label>
-            <label class="checkbox-label">
-              <input type="checkbox" id="variant-pilepoil"> "Pile-poil !" (Réponse exacte)
-            </label>
           </div>
           <button class="btn btn-primary" id="btn-create-game">Créer la partie</button>
         </div>
@@ -108,22 +105,34 @@
           <div id="challenge-controls">
             <button class="btn btn-danger" id="btn-challenge">Là t'abuses ! 🚨</button>
             <button class="btn btn-warning hidden" id="btn-double-down">C'est toi qui abuses ! 🔥</button>
-            <button class="btn btn-info hidden" id="btn-pile-poil">Pile-poil ! 🎯</button>
           </div>
         </div>
 
         <div id="challenge-result" class="card result-card hidden"></div>
 
-        <h3>Joueurs (<span id="threshold-display">0/10</span> pts pour perdre)</h3>
-        <div id="game-players" class="player-grid"></div>
-
-        <div class="logs-section">
-          <h4>Journal de la partie</h4>
-          <div id="game-logs" class="logs"></div>
+        <div class="table-container">
+          <div id="game-players" class="player-grid"></div>
+          <div class="table-center">
+            <div class="table-icon">🎲</div>
+            <span id="threshold-display" class="table-label">0/10</span>
+          </div>
         </div>
 
         <button class="btn btn-secondary hidden" id="btn-leave-game">Quitter la partie</button>
       </div>
+    </div>
+
+    <div id="challenge-popup" class="challenge-popup hidden">
+      <div id="challenge-popup-body" class="challenge-popup-body"></div>
+      <div class="challenge-popup-bar"></div>
+    </div>
+
+    <div id="log-fab" class="log-fab">
+      <div class="log-fab-header">
+        <span>📜 Journal</span>
+        <button id="log-fab-toggle" class="log-fab-toggle">−</button>
+      </div>
+      <div id="game-logs" class="logs"></div>
     </div>
 
     <div id="end-screen" class="screen hidden">

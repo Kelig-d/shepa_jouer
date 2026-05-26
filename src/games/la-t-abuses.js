@@ -39,6 +39,7 @@ function getInitialState(hostId, hostName, variantRules = []) {
     currentGuess: null,
     lastGuessValue: null,
     lastGuesserId: null,
+    firstPlayerIndex: 0,
     variantRules,
     penaltyThreshold: PENALTY_THRESHOLD,
     hostId,
@@ -127,6 +128,7 @@ class LaTabusesGame {
     state.currentGuess = null;
     state.lastGuessValue = null;
     state.lastGuesserId = null;
+    state.firstPlayerIndex = 0;
     state.currentTurnIndex = 0;
     state.logs.push({ type: 'gameStarted', question: question.text, difficulty: question.difficulty });
 
@@ -260,43 +262,6 @@ class LaTabusesGame {
     return { state, answer, pts };
   }
 
-  async pilePoil(gameId, playerId) {
-    const state = await this.getGame(gameId);
-    if (!state) throw new Error('Partie introuvable');
-    if (!this.hasVariant(state, 'pilepoil')) throw new Error('Variante non activée');
-    if (state.lastGuessValue === null) throw new Error('Aucune supposition');
-    if (playerId === state.lastGuesserId) throw new Error('Vous ne pouvez pas sur votre propre tour');
-
-    const answer = state.currentQuestion.answer;
-
-    if (state.lastGuessValue === answer) {
-      state.logs.push({
-        type: 'pilePoil',
-        playerId,
-        result: 'success',
-        answer,
-      });
-    } else {
-      const player = state.players.find((p) => p.id === playerId);
-      player.penaltyPoints = state.penaltyThreshold;
-      state.status = GAME_STATUS.ENDED;
-      state.logs.push({
-        type: 'pilePoil',
-        playerId,
-        result: 'fail',
-        answer,
-      });
-      state.logs.push({ type: 'gameEnded', reason: `${player.name} a perdu (Pile-Poil!)` });
-    }
-
-    if (state.status !== GAME_STATUS.ENDED) {
-      await this.nextQuestion(state);
-    }
-
-    await this.saveGame(state);
-    return { state, answer };
-  }
-
   async nextQuestion(state) {
     state.currentQuestion = null;
     state.currentGuess = null;
@@ -310,7 +275,8 @@ class LaTabusesGame {
     state.currentQuestion = question;
     state.lastGuessValue = null;
     state.lastGuesserId = null;
-    state.currentTurnIndex = 0;
+    state.firstPlayerIndex = (state.firstPlayerIndex + 1) % state.turnOrder.length;
+    state.currentTurnIndex = state.firstPlayerIndex;
     state.logs.push({ type: 'newQuestion', question: question.text, difficulty: question.difficulty });
     await this.saveGame(state);
     return state;

@@ -2,6 +2,7 @@ const socket = io();
 let state = null;
 let myPlayerId = null;
 let currentGameId = null;
+let lastLogCount = 0;
 
 const $ = (id) => document.getElementById(id);
 
@@ -41,6 +42,14 @@ const DIFFICULTY_COLORS = {
   extreme: '#6f42c1',
 };
 
+const AVATARS = ['🦊', '🐼', '🐨', '🦁', '🐯', '🐸', '🐵', '🦄', '🐲', '🐶'];
+
+function getAvatar(name) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash) + name.charCodeAt(i);
+  return AVATARS[Math.abs(hash) % AVATARS.length];
+}
+
 document.querySelectorAll('.tab').forEach((tab) => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
@@ -56,12 +65,13 @@ $('btn-create-game').addEventListener('click', async () => {
 
   const variantRules = [];
   if ($('variant-double').checked) variantRules.push('double');
-  if ($('variant-pilepoil').checked) variantRules.push('pilepoil');
 
   try {
     const res = await emitWithCallback('createGame', { playerName, variantRules });
     currentGameId = res.gameId;
     myPlayerId = res.playerId;
+    sessionStorage.setItem('shepa_playerName', playerName);
+    sessionStorage.setItem('shepa_gameId', res.gameId);
     showLobby();
   } catch (err) {
     showError(err.message);
@@ -78,6 +88,8 @@ $('btn-join-game').addEventListener('click', async () => {
     const res = await emitWithCallback('joinGame', { gameId, playerName });
     currentGameId = gameId;
     myPlayerId = res.playerId;
+    sessionStorage.setItem('shepa_playerName', playerName);
+    sessionStorage.setItem('shepa_gameId', gameId);
     showLobby();
   } catch (err) {
     showError(err.message);
@@ -88,8 +100,7 @@ $('btn-leave-lobby').addEventListener('click', async () => {
   try {
     await emitWithCallback('leaveGame', { gameId: currentGameId });
   } catch (e) {}
-  currentGameId = null;
-  myPlayerId = null;
+  clearSession();
   showScreen('lobby-screen');
 });
 
@@ -132,34 +143,35 @@ $('btn-double-down').addEventListener('click', async () => {
   }
 });
 
-$('btn-pile-poil').addEventListener('click', async () => {
-  try {
-    await emitWithCallback('pilePoil', { gameId: currentGameId });
-  } catch (err) {
-    showError(err.message);
-  }
-});
-
 $('btn-leave-game').addEventListener('click', async () => {
   try {
     await emitWithCallback('leaveGame', { gameId: currentGameId });
   } catch (e) {}
-  currentGameId = null;
-  myPlayerId = null;
+  clearSession();
   showScreen('lobby-screen');
 });
 
 $('btn-replay').addEventListener('click', () => {
-  currentGameId = null;
-  myPlayerId = null;
+  clearSession();
   showScreen('lobby-screen');
 });
 
 $('btn-back-lobby').addEventListener('click', () => {
-  currentGameId = null;
-  myPlayerId = null;
+  clearSession();
   showScreen('lobby-screen');
 });
+
+$('log-fab-toggle').addEventListener('click', () => {
+  const fab = $('log-fab');
+  fab.classList.toggle('collapsed');
+});
+
+function clearSession() {
+  currentGameId = null;
+  myPlayerId = null;
+  sessionStorage.removeItem('shepa_playerName');
+  sessionStorage.removeItem('shepa_gameId');
+}
 
 function showLobby() {
   showScreen('lobby-game-screen');
@@ -172,6 +184,19 @@ document.addEventListener('click', (e) => {
   }
 });
 
+async function tryReconnect() {
+  const playerName = sessionStorage.getItem('shepa_playerName');
+  const gameId = sessionStorage.getItem('shepa_gameId');
+  if (!playerName || !gameId) return;
+  try {
+    const res = await emitWithCallback('reconnectGame', { gameId, playerName });
+    currentGameId = res.gameId;
+    myPlayerId = res.playerId;
+  } catch (e) {
+    clearSession();
+  }
+}
+
 function renderLobby(state) {
   $('lobby-game-code').textContent = state.id;
   $('lobby-host').textContent = state.players.find((p) => p.id === state.hostId)?.name || 'Inconnu';
@@ -179,12 +204,11 @@ function renderLobby(state) {
 
   const variants = [];
   if (state.variantRules.includes('double')) variants.push('C\'est toi qui abuses');
-  if (state.variantRules.includes('pilepoil')) variants.push('Pile-poil');
   $('lobby-variants').textContent = variants.length ? variants.join(', ') : 'Aucune';
 
   $('lobby-players').innerHTML = state.players.map((p) => `
     <li>
-      <span>${escapeHtml(p.name)}</span>
+      <span>${getAvatar(p.name)} ${escapeHtml(p.name)}</span>
       ${p.id === state.hostId ? '<span class="host-badge">Hôte</span>' : ''}
     </li>
   `).join('');
@@ -200,8 +224,6 @@ function renderLobby(state) {
 
 function renderGame(state) {
   showScreen('game-screen');
-
-  $('threshold-display').textContent = `0/${state.penaltyThreshold}`;
 
   if (state.currentQuestion) {
     const q = state.currentQuestion;
@@ -242,37 +264,20 @@ function renderGame(state) {
     $('card-number').textContent = '';
   }
 
-  const lastGuessInfo = $('last-guess-info');
-  if (state.lastGuessValue !== null && state.lastGuesserId) {
-    const guesser = state.players.find((p) => p.id === state.lastGuesserId);
-    lastGuessInfo.classList.remove('hidden');
-    $('last-guess-value').textContent = state.lastGuessValue;
-    $('last-guess-player').textContent = guesser ? guesser.name : 'Inconnu';
-  } else {
-    lastGuessInfo.classList.add('hidden');
-  }
-
   const currentPlayerId = state.turnOrder[state.currentTurnIndex];
   const isMyTurn = currentPlayerId === myPlayerId;
 
   const guessControls = $('guess-controls');
-  const guessBtn = $('btn-submit-guess');
   const challengeBtn = $('btn-challenge');
   const doubleDownBtn = $('btn-double-down');
-  const pilePoilBtn = $('btn-pile-poil');
 
-  // Current player can EITHER guess higher OR challenge
   if (state.status === 'playing' && isMyTurn) {
     if (state.lastGuesserId !== myPlayerId) {
-      // Can guess - only if I didn't make the last guess
       guessControls.classList.remove('hidden');
-      guessBtn.disabled = false;
     } else {
       guessControls.classList.add('hidden');
-      guessBtn.disabled = true;
     }
 
-    // Can challenge if there's a last guess by someone else
     if (state.lastGuessValue !== null && state.lastGuesserId !== myPlayerId) {
       challengeBtn.classList.remove('hidden');
       challengeBtn.disabled = false;
@@ -281,7 +286,6 @@ function renderGame(state) {
       challengeBtn.disabled = true;
     }
 
-    // Double down: if I made the last guess and variant is active, I can respond to a challenge
     if (state.lastGuesserId === myPlayerId && state.variantRules.includes('double')) {
       doubleDownBtn.classList.remove('hidden');
       doubleDownBtn.disabled = false;
@@ -291,45 +295,43 @@ function renderGame(state) {
     }
   } else {
     guessControls.classList.add('hidden');
-    guessBtn.disabled = true;
     challengeBtn.classList.add('hidden');
     challengeBtn.disabled = true;
     doubleDownBtn.classList.add('hidden');
     doubleDownBtn.disabled = true;
   }
 
-  // Pile-poil can be said by ANY player (not the last guesser)
-  if (state.status === 'playing' && state.lastGuessValue !== null && myPlayerId !== state.lastGuesserId && state.variantRules.includes('pilepoil')) {
-    pilePoilBtn.classList.remove('hidden');
-    pilePoilBtn.disabled = false;
-  } else {
-    pilePoilBtn.classList.add('hidden');
-    pilePoilBtn.disabled = true;
-  }
+  renderTable(state, currentPlayerId);
 
-  // Player grid
-  const myPts = state.players.find((p) => p.id === myPlayerId)?.penaltyPoints || 0;
+  renderLogs(state);
+
+  checkChallengePopup(state);
+}
+
+function renderTable(state, currentPlayerId) {
   const maxPts = state.penaltyThreshold;
+  const active = state.players.filter((p) => p.penaltyPoints < maxPts && state.status !== 'ended');
+  const eliminated = state.players.filter((p) => p.penaltyPoints >= maxPts || state.status === 'ended');
+  const ordered = [...active, ...eliminated];
 
-  $('threshold-display').textContent = `${myPts}/${maxPts}`;
-
-  $('game-players').innerHTML = state.players.map((p) => {
-    const isCurrent = state.turnOrder[state.currentTurnIndex] === p.id;
-    const eliminated = p.penaltyPoints >= maxPts || state.status === 'ended';
+  $('game-players').innerHTML = ordered.map((p) => {
+    const isCurrent = currentPlayerId === p.id;
+    const isEliminated = p.penaltyPoints >= maxPts || state.status === 'ended';
     const pct = Math.min(100, (p.penaltyPoints / maxPts) * 100);
     return `
-      <div class="player-card ${isCurrent && state.status === 'playing' ? 'current-turn' : ''} ${eliminated ? 'eliminated' : ''}">
-        <div class="player-name">${escapeHtml(p.name)} ${p.id === myPlayerId ? '(Vous)' : ''}</div>
-        <div class="player-points">⚠️ ${p.penaltyPoints}/${maxPts} pts</div>
-        <div class="penalty-bar">
-          <div class="penalty-bar-fill" style="width: ${pct}%"></div>
-        </div>
-        ${isCurrent && state.status === 'playing' ? '<div class="turn-indicator">▶ À vous de jouer</div>' : ''}
+      <div class="table-seat ${isCurrent && state.status === 'playing' ? 'active-turn' : ''} ${isEliminated ? 'eliminated' : ''}">
+        <div class="seat-avatar">${getAvatar(p.name)}</div>
+        <div class="seat-name">${escapeHtml(p.name)} ${p.id === myPlayerId ? '<span class="seat-you">Vous</span>' : ''}</div>
+        <div class="seat-points">⚠️ ${p.penaltyPoints}/${maxPts}</div>
+        <div class="penalty-bar"><div class="penalty-bar-fill" style="width: ${pct}%"></div></div>
+        ${isCurrent && state.status === 'playing' ? '<div class="seat-indicator">▶ TOUR</div>' : ''}
+        ${isEliminated ? '<div class="seat-indicator lost">💀</div>' : ''}
       </div>
     `;
   }).join('');
+}
 
-  // Logs
+function renderLogs(state) {
   $('game-logs').innerHTML = state.logs.slice(-20).map((log) => {
     let text = '';
     const p = (id) => state.players.find((pl) => pl.id === id)?.name || 'Inconnu';
@@ -341,28 +343,59 @@ function renderGame(state) {
         text = `📝 ${escapeHtml(log.question)} (${DIFFICULTY_LABELS[log.difficulty] || log.difficulty})`;
         break;
       case 'guess':
-        text = `🔢 ${p(log.playerId)} a deviné ${log.guessValue}`;
+        text = `🔢 ${p(log.playerId)} → ${log.guessValue}`;
         break;
       case 'challenge':
-        text = `🚨 ${p(log.challengerId)} dit "Là t'abuses!" → ${p(log.loserId)} perd +${log.pts} pts (${log.guessValue} vs ${log.answer})`;
+        text = `🚨 ${p(log.challengerId)} : Là t'abuses ! → ${p(log.loserId)} +${log.pts} pts`;
         break;
       case 'doubleDown':
-        text = `🔥 ${p(log.playerId)} dit "C'est toi qui abuses!" → +${log.pts} pts`;
-        break;
-      case 'pilePoil':
-        text = `🎯 ${p(log.playerId)} dit "Pile-poil!" (${log.result === 'success' ? '✅ Réussi, personne ne prend de points' : '❌ Échec'})`;
+        text = `🔥 ${p(log.playerId)} : C'est toi qui abuses ! → +${log.pts} pts`;
         break;
       case 'gameEnded':
-        text = `🏁 Partie terminée : ${log.reason}`;
+        text = `🏁 ${log.reason}`;
         break;
       default:
         text = JSON.stringify(log);
     }
     return `<div class="log-entry">${text}</div>`;
   }).join('');
+  $('game-logs').scrollTop = $('game-logs').scrollHeight;
+}
 
-  const logsContainer = $('game-logs');
-  logsContainer.scrollTop = logsContainer.scrollHeight;
+function checkChallengePopup(state) {
+  const lastLog = state.logs[state.logs.length - 1];
+  if (!lastLog || lastLog.type !== 'challenge') { lastLogCount = state.logs.length; return; }
+  if (state.logs.length === lastLogCount) return;
+  lastLogCount = state.logs.length;
+
+  const p = (id) => state.players.find((pl) => pl.id === id)?.name || 'Inconnu';
+  const challenger = p(lastLog.challengerId);
+  const guessed = p(lastLog.guessedId);
+  const loser = p(lastLog.loserId);
+  const challengerLost = lastLog.loserId === lastLog.challengerId;
+
+  const popup = $('challenge-popup');
+  const body = $('challenge-popup-body');
+  body.innerHTML = `
+    <div class="popup-icon">${challengerLost ? '❌' : '✅'}</div>
+    <div class="popup-text">
+      <strong>Là t'abuses !</strong><br>
+      ${challenger} challenge ${guested}<br>
+      <span class="popup-detail">Supposition: ${lastLog.guessValue} · Réponse: ${lastLog.answer}</span><br>
+      <span class="popup-result ${challengerLost ? 'text-red' : 'text-green'}">
+        ${challengerLost ? `${challenger} se trompe ! +${lastLog.pts} pts` : `${guessed} s'est trompé ! +${lastLog.pts} pts`}
+      </span>
+    </div>
+  `;
+  popup.classList.remove('hidden');
+  popup.classList.remove('popup-hide');
+  popup.classList.add('popup-show');
+
+  setTimeout(() => {
+    popup.classList.remove('popup-show');
+    popup.classList.add('popup-hide');
+    setTimeout(() => popup.classList.add('hidden'), 500);
+  }, 4000);
 }
 
 function renderEnd(state) {
@@ -379,7 +412,7 @@ function renderEnd(state) {
 
   $('end-scores').innerHTML = state.players.map((p) => `
     <div class="player-card ${p.id === loser.id ? 'eliminated' : ''}">
-      <div class="player-name">${escapeHtml(p.name)} ${p.id === loser.id ? '😵' : '🎉'}</div>
+      <div class="player-name">${getAvatar(p.name)} ${escapeHtml(p.name)} ${p.id === loser.id ? '😵' : '🎉'}</div>
       <div class="player-points">⚠️ ${p.penaltyPoints} pts</div>
     </div>
   `).join('');
@@ -403,6 +436,8 @@ socket.on('gameUpdate', (gameState) => {
     renderEnd(gameState);
   }
 });
+
+tryReconnect();
 
 $('host-name').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') $('btn-create-game').click();
