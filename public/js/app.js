@@ -72,6 +72,7 @@ $('btn-create-game').addEventListener('click', async () => {
     myPlayerId = res.playerId;
     sessionStorage.setItem('shepa_playerName', playerName);
     sessionStorage.setItem('shepa_gameId', res.gameId);
+    updateSessionBar();
     showLobby();
   } catch (err) {
     showError(err.message);
@@ -90,6 +91,7 @@ $('btn-join-game').addEventListener('click', async () => {
     myPlayerId = res.playerId;
     sessionStorage.setItem('shepa_playerName', playerName);
     sessionStorage.setItem('shepa_gameId', gameId);
+    updateSessionBar();
     showLobby();
   } catch (err) {
     showError(err.message);
@@ -166,11 +168,23 @@ $('log-fab-toggle').addEventListener('click', () => {
   fab.classList.toggle('collapsed');
 });
 
+function updateSessionBar() {
+  const bar = $('session-bar');
+  const playerName = sessionStorage.getItem('shepa_playerName');
+  if (playerName) {
+    $('session-player').innerHTML = `Connecté en tant que <strong>${escapeHtml(playerName)}</strong>`;
+    bar.classList.remove('hidden');
+  } else {
+    bar.classList.add('hidden');
+  }
+}
+
 function clearSession() {
   currentGameId = null;
   myPlayerId = null;
   sessionStorage.removeItem('shepa_playerName');
   sessionStorage.removeItem('shepa_gameId');
+  updateSessionBar();
 }
 
 function showLobby() {
@@ -313,6 +327,8 @@ function renderGame(state) {
 
   renderTable(state, currentPlayerId);
 
+  $('btn-leave-game').classList.remove('hidden');
+
   renderLogs(state);
 
   checkChallengePopup(state);
@@ -449,7 +465,12 @@ socket.on('gameUpdate', (gameState) => {
   }
 });
 
-tryReconnect();
+$('btn-disconnect').addEventListener('click', () => {
+  clearSession();
+  showScreen('lobby-screen');
+});
+
+tryReconnect().finally(() => updateSessionBar());
 
 $('host-name').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') $('btn-create-game').click();
