@@ -1,6 +1,6 @@
 services:
   app:
-    build: .
+    image: ghcr.io/kelig-d/shepa_jouer:latest
     container_name: jeux-societe
     restart: unless-stopped
     ports:
