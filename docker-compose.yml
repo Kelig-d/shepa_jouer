@@ -1,0 +1,13 @@
+services:
+  app:
+    build: .
+    container_name: jeux-societe
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - REDIS_HOST=redis.yazoub.fr
+      - REDIS_PORT=6379
+      - REDIS_PASS=P4ssw0rd!&
+      - REDIS_TLS=false
+      - PORT=3000
