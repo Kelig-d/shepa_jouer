@@ -6,7 +6,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_NAME: kelig-d/shepa_jouer
 
 jobs:
   build-and-push:
@@ -31,3 +31,11 @@ jobs:
           context: .
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Make package public
+        run: |
+          gh api --method PATCH \
+            /user/packages/container/shepa_jouer/visibility \
+            -f visibility=public
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
