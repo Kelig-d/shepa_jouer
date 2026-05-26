@@ -1,7 +1,7 @@
 const Redis = require('ioredis');
 
-const REDIS_HOST = process.env.REDIS_HOST || 'redis.yazoub.fr';
-const REDIS_PORT = parseInt(process.env.REDIS_PORT || '6379');
+const REDIS_HOST = process.env.REDIS_HOST;
+const REDIS_PORT = parseInt(process.env.REDIS_PORT);
 const REDIS_TLS = process.env.REDIS_TLS === 'true';
 const REDIS_PASS = process.env.REDIS_PASS;
 let redis;
