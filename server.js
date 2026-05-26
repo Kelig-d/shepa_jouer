@@ -170,6 +170,7 @@ io.on('connection', (socket) => {
       if (!state) throw new Error('Partie introuvable');
       const player = state.players.find((p) => p.name === playerName);
       if (!player) throw new Error('Joueur introuvable');
+      if (state.hostId === player.id) state.hostId = socket.id;
       player.id = socket.id;
       socket.join(gameId);
       await gameEngine.saveGame(state);
