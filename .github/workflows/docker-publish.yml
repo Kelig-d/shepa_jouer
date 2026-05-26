@@ -32,10 +32,4 @@ jobs:
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
-      - name: Make package public
-        run: |
-          gh api --method PATCH \
-            /user/packages/container/shepa_jouer/visibility \
-            -f visibility=public
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
