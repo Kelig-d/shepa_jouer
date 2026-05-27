@@ -64,6 +64,8 @@ function emitState(io, gameId, state) {
     currentQuestion: state.currentQuestion
       ? { id: state.currentQuestion.id, text: state.currentQuestion.text, category: state.currentQuestion.category, difficulty: state.currentQuestion.difficulty, answer: state.currentQuestion.answer }
       : null,
+    nsfwLevel: state.nsfwLevel || 0,
+    isSolo: state.isSolo || false,
     currentCard: state.currentCard || null,
     currentPlayerId: state.currentPlayerId || null,
     currentGuess: state.currentGuess,
@@ -80,11 +82,11 @@ function emitState(io, gameId, state) {
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
 
-  socket.on('createGame', async ({ playerName, playerAvatar, gameType, variantRules }, callback) => {
+  socket.on('createGame', async ({ playerName, playerAvatar, gameType, variantRules, nsfwLevel, isSolo }, callback) => {
     try {
       const playerId = socket.id;
       const engine = gameType === 'le-toz' ? leTozEngine : laTabusesEngine;
-      const state = await engine.createGame(playerId, playerName, playerAvatar, variantRules || []);
+      const state = await engine.createGame(playerId, playerName, playerAvatar, variantRules || [], nsfwLevel, isSolo);
       socket.join(state.id);
       emitState(io, state.id, state);
       if (callback) callback({ success: true, gameId: state.id, playerId });

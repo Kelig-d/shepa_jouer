@@ -61,6 +61,15 @@ function flashEffect(type) {
   overlay.classList.add('flash-' + type);
 }
 
+// --- MODE TOGGLE ---
+document.querySelectorAll('.mode-option').forEach((opt) => {
+  opt.addEventListener('click', () => {
+    document.querySelectorAll('.mode-option').forEach((o) => o.classList.remove('active'));
+    opt.classList.add('active');
+    $('mode-input').value = opt.dataset.mode;
+  });
+});
+
 // --- GAME TYPE SELECTION ---
 document.querySelectorAll('.game-type-card').forEach((card) => {
   card.addEventListener('click', () => {
@@ -72,6 +81,17 @@ document.querySelectorAll('.game-type-card').forEach((card) => {
     const opts = $(game + '-options');
     if (opts) opts.classList.remove('hidden');
   });
+});
+
+// --- NSFW SLIDER ---
+const nsfwLabels = ['🟢 Familial', '🟡 Amis', '🟠 Croustillant', '🔴 Hot', '🟣 Extrême'];
+const nsfwDescs = ['Cartes drôles et légères uniquement', 'Ajoute des potins et questions entre amis', 'Ajoute des sujets perso et coquins', 'Ajoute des cartes osées et sensuelles', 'Toutes les cartes, y compris explicites'];
+$('nsfw-slider').addEventListener('input', function () {
+  const level = parseInt(this.value);
+  $('nsfw-level-input').value = level;
+  $('nsfw-badge').textContent = nsfwLabels[level] || '🟢 Familial';
+  $('nsfw-slider-desc').textContent = nsfwDescs[level] || '';
+  document.querySelectorAll('.nsfw-slider-label').forEach((l) => l.classList.toggle('active', parseInt(l.dataset.level) === level));
 });
 
 // --- AVATAR PICKER ---
@@ -155,11 +175,13 @@ $('btn-create-game').addEventListener('click', async () => {
   const gameType = $('game-type-input').value || 'la-t-abuses';
   const variantRules = [];
   if ($('variant-double') && $('variant-double').checked) variantRules.push('double');
+  const nsfwLevel = parseInt($('nsfw-level-input')?.value || '0');
+  const isSolo = $('mode-input')?.value === 'solo';
 
   myAvatar = playerAvatar;
 
   try {
-    const res = await emitWithCallback('createGame', { playerName, playerAvatar, gameType, variantRules });
+    const res = await emitWithCallback('createGame', { playerName, playerAvatar, gameType, variantRules, nsfwLevel, isSolo });
     currentGameId = res.gameId;
     myPlayerId = res.playerId;
     sessionStorage.setItem('shepa_playerName', playerName);
@@ -343,7 +365,12 @@ function renderLobby(state) {
 
   const variants = [];
   if (state.variantRules && state.variantRules.includes('double')) variants.push('C\'est toi qui abuses');
+  const nsfwLabels = ['Familial', 'Amis', 'Croustillant', 'Hot', 'Extrême'];
+  if (state.gameType === 'le-toz' && state.nsfwLevel !== undefined) {
+    variants.push('NSFW: ' + (nsfwLabels[state.nsfwLevel] || state.nsfwLevel));
+  }
   $('lobby-variants').textContent = variants.length ? variants.join(', ') : 'Aucune';
+  $('lobby-mode').textContent = state.isSolo ? '🎮 Solo' : '👥 Multijoueur';
   $('lobby-game-type').textContent = GAME_NAMES[state.gameType] || state.gameType || 'Là t\'abuses !';
 
   $('lobby-players').innerHTML = state.players.map((p) => `
@@ -478,6 +505,8 @@ function renderLaTabuses(state) {
 
 function renderLeToz(state) {
   const card = state.currentCard;
+  const isHost = myPlayerId === state.hostId;
+
   if (card) {
     const player = state.players.find((p) => p.id === state.currentPlayerId);
 
@@ -487,14 +516,30 @@ function renderLeToz(state) {
     $('toz-text').textContent = card.text;
 
     $('btn-toz-draw').classList.add('hidden');
-    $('btn-toz-next').classList.remove('hidden');
+    if (state.isSolo) {
+      $('btn-toz-next').classList.toggle('hidden', !isHost);
+    } else {
+      $('btn-toz-next').classList.remove('hidden');
+    }
+
+    if (card.toz) {
+      $('toz-sips').textContent = '🍺 ' + card.toz + ' gorgée' + (card.toz > 1 ? 's' : '') + ' si tu passes';
+      $('toz-sips').classList.remove('hidden');
+    } else {
+      $('toz-sips').classList.add('hidden');
+    }
   } else {
     $('toz-type').textContent = '';
     $('toz-type').className = 'toz-type';
     $('toz-player').textContent = '';
     $('toz-text').textContent = 'Prêt à piocher ?';
+    $('toz-sips').classList.add('hidden');
 
-    $('btn-toz-draw').classList.remove('hidden');
+    if (state.isSolo) {
+      $('btn-toz-draw').classList.toggle('hidden', !isHost);
+    } else {
+      $('btn-toz-draw').classList.remove('hidden');
+    }
     $('btn-toz-next').classList.add('hidden');
   }
 }
@@ -558,7 +603,7 @@ function renderLogs(state) {
       case 'challenge': text = `🚨 ${p(log.challengerId)} : Là t'abuses ! → ${p(log.loserId)} +${log.pts} pts`; break;
       case 'doubleDown': text = `🔥 ${p(log.playerId)} : C'est toi qui abuses ! → +${log.pts} pts`; break;
       case 'gameEnded': text = `🏁 ${log.reason}`; break;
-      case 'cardDrawn': text = `🃏 ${p(log.playerId)} pioche une carte ${log.cardType === 'verite' ? 'Vérité' : 'Action'}`; break;
+      case 'cardDrawn': text = `🃏 ${p(log.playerId)} pioche une carte ${log.cardType === 'verite' ? 'Vérité' : 'Action'}`; if (log.toz) text += ` (🍺 ${log.toz})`; break;
       default: text = JSON.stringify(log);
     }
     return `<div class="log-entry">${text}</div>`;
