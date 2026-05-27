@@ -3,8 +3,28 @@ let state = null;
 let myPlayerId = null;
 let currentGameId = null;
 let lastLogCount = 0;
+let myAvatar = null;
 
 const $ = (id) => document.getElementById(id);
+
+const AVATAR_LIST = ['🦊', '🐼', '🐨', '🦁', '🐯', '🐸', '🐵', '🦄', '🐲', '🐶', '🐺', '🐱', '🐰', '🦝', '🐙', '🦋', '🐢', '🐊', '🦅', '🐧'];
+
+const DIFFICULTY_LABELS = { facile: 'Facile', moyen: 'Moyen', difficile: 'Difficile', extreme: 'Extrême' };
+const DIFFICULTY_COLORS = { facile: '#28a745', moyen: '#ffc107', difficile: '#dc3545', extreme: '#6f42c1' };
+const DIFFICULTY_POINTS = { facile: 1, moyen: 2, difficile: 3, extreme: 5 };
+
+const RULES = {
+  double: `
+    <h3>🔥 C'est toi qui abuses !</h3>
+    <p>Après avoir fait une supposition, tu peux <strong>doubler la mise</strong> en activant cette variante.</p>
+    <ul>
+      <li>Si ta supposition est <strong>trop haute</strong> (≥ la réponse), tu prends <strong>2× les points</strong> de pénalité</li>
+      <li>Si ta supposition est <strong>bonne</strong> (&lt; la réponse), tu prends <strong>1× les points</strong> (comme d'habitude)</li>
+      <li>Tu ne peux activer cette option qu'immédiatement après avoir fait ta supposition</li>
+    </ul>
+    <p>Stratégie : utile quand tu es sûr de toi et que tu veux en finir vite !</p>
+  `
+};
 
 function showScreen(screenId) {
   document.querySelectorAll('.screen').forEach((s) => s.classList.add('hidden'));
@@ -28,28 +48,82 @@ function emitWithCallback(event, data) {
   });
 }
 
-const DIFFICULTY_LABELS = {
-  facile: 'Facile',
-  moyen: 'Moyen',
-  difficile: 'Difficile',
-  extreme: 'Extrême',
-};
-
-const DIFFICULTY_COLORS = {
-  facile: '#28a745',
-  moyen: '#ffc107',
-  difficile: '#dc3545',
-  extreme: '#6f42c1',
-};
-
-const AVATARS = ['🦊', '🐼', '🐨', '🦁', '🐯', '🐸', '🐵', '🦄', '🐲', '🐶'];
-
-function getAvatar(name) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash) + name.charCodeAt(i);
-  return AVATARS[Math.abs(hash) % AVATARS.length];
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
 }
 
+function flashEffect(type) {
+  const overlay = $('flash-overlay');
+  overlay.className = 'flash-overlay';
+  void overlay.offsetHeight;
+  overlay.classList.add('flash-' + type);
+}
+
+// --- AVATAR PICKER ---
+function initAvatarPicker(containerId, onSelect) {
+  const container = $(containerId);
+  container.innerHTML = AVATAR_LIST.map((a) =>
+    `<div class="avatar-option" data-avatar="${a}">${a}</div>`
+  ).join('');
+  let selected = null;
+
+  container.querySelectorAll('.avatar-option').forEach((el) => {
+    el.addEventListener('click', () => {
+      container.querySelectorAll('.avatar-option').forEach((o) => o.classList.remove('selected'));
+      el.classList.add('selected');
+      selected = el.dataset.avatar;
+      if (onSelect) onSelect(selected);
+    });
+  });
+
+  return {
+    getValue: () => selected,
+    setValue: (avatar) => {
+      container.querySelectorAll('.avatar-option').forEach((o) => o.classList.remove('selected'));
+      const el = container.querySelector(`[data-avatar="${avatar}"]`);
+      if (el) el.classList.add('selected');
+      selected = avatar;
+    },
+  };
+}
+
+const hostAvatarPicker = initAvatarPicker('host-avatar-picker');
+const joinAvatarPicker = initAvatarPicker('join-avatar-picker');
+
+hostAvatarPicker.setValue('🦊');
+joinAvatarPicker.setValue('🐼');
+
+// --- VARIANT CARDS ---
+document.querySelectorAll('.variant-card').forEach((card) => {
+  card.addEventListener('click', (e) => {
+    if (e.target.closest('.variant-info-btn')) return;
+    card.classList.toggle('active');
+    const variant = card.dataset.variant;
+    const checkbox = $(['variant-', variant].join(''));
+    if (checkbox) checkbox.checked = card.classList.contains('active');
+  });
+});
+
+// --- RULES MODAL ---
+document.querySelectorAll('.variant-info-btn').forEach((btn) => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const rulesKey = btn.dataset.rules;
+    const content = RULES[rulesKey] || '<p>Règles non disponibles</p>';
+    $('rules-modal-content').innerHTML = content;
+    $('rules-modal').classList.remove('hidden');
+  });
+});
+$('rules-modal-close').addEventListener('click', () => {
+  $('rules-modal').classList.add('hidden');
+});
+$('rules-modal').addEventListener('click', (e) => {
+  if (e.target === $('rules-modal')) $('rules-modal').classList.add('hidden');
+});
+
+// --- TABS ---
 document.querySelectorAll('.tab').forEach((tab) => {
   tab.addEventListener('click', () => {
     document.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
@@ -59,15 +133,19 @@ document.querySelectorAll('.tab').forEach((tab) => {
   });
 });
 
+// --- CREATE GAME ---
 $('btn-create-game').addEventListener('click', async () => {
   const playerName = $('host-name').value.trim();
   if (!playerName) { showError('Entrez un pseudo'); return; }
 
+  const playerAvatar = hostAvatarPicker.getValue() || '🦊';
   const variantRules = [];
   if ($('variant-double').checked) variantRules.push('double');
 
+  myAvatar = playerAvatar;
+
   try {
-    const res = await emitWithCallback('createGame', { playerName, variantRules });
+    const res = await emitWithCallback('createGame', { playerName, playerAvatar, variantRules });
     currentGameId = res.gameId;
     myPlayerId = res.playerId;
     sessionStorage.setItem('shepa_playerName', playerName);
@@ -79,14 +157,18 @@ $('btn-create-game').addEventListener('click', async () => {
   }
 });
 
+// --- JOIN GAME ---
 $('btn-join-game').addEventListener('click', async () => {
   const playerName = $('join-name').value.trim();
   const gameId = $('game-code').value.trim();
   if (!playerName) { showError('Entrez un pseudo'); return; }
   if (!gameId) { showError('Entrez le code de la partie'); return; }
 
+  const playerAvatar = joinAvatarPicker.getValue() || '🐼';
+  myAvatar = playerAvatar;
+
   try {
-    const res = await emitWithCallback('joinGame', { gameId, playerName });
+    const res = await emitWithCallback('joinGame', { gameId, playerName, playerAvatar });
     currentGameId = gameId;
     myPlayerId = res.playerId;
     sessionStorage.setItem('shepa_playerName', playerName);
@@ -163,11 +245,12 @@ $('btn-back-lobby').addEventListener('click', () => {
   showScreen('lobby-screen');
 });
 
-$('log-fab-toggle').addEventListener('click', () => {
-  const fab = $('log-fab');
-  fab.classList.toggle('collapsed');
+// --- LOG FAB ---
+$('log-fab-header').addEventListener('click', () => {
+  $('log-fab').classList.toggle('collapsed');
 });
 
+// --- SESSION ---
 function updateSessionBar() {
   const bar = $('session-bar');
   const playerName = sessionStorage.getItem('shepa_playerName');
@@ -211,9 +294,10 @@ async function tryReconnect() {
   }
 }
 
+// --- RENDER LOBBY ---
 function renderLobby(state) {
   $('lobby-game-code').textContent = state.id;
-  $('lobby-host').textContent = state.players.find((p) => p.id === state.hostId)?.name || 'Inconnu';
+  $('lobby-host').textContent = (state.players.find((p) => p.id === state.hostId)?.name) || 'Inconnu';
   $('lobby-player-count').textContent = state.players.length;
 
   const variants = [];
@@ -222,7 +306,7 @@ function renderLobby(state) {
 
   $('lobby-players').innerHTML = state.players.map((p) => `
     <li>
-      <span>${getAvatar(p.name)} ${escapeHtml(p.name)}</span>
+      <span>${p.avatar || '🦊'} ${escapeHtml(p.name)}</span>
       ${p.id === state.hostId ? '<span class="host-badge">Hôte</span>' : ''}
     </li>
   `).join('');
@@ -236,13 +320,14 @@ function renderLobby(state) {
   }
 }
 
+// --- RENDER GAME ---
 function renderGame(state) {
   showScreen('game-screen');
 
   if (state.currentQuestion) {
     const q = state.currentQuestion;
     const diff = q.difficulty || 'facile';
-    const pts = { facile: 1, moyen: 2, difficile: 3, extreme: 5 }[diff] || 1;
+    const pts = DIFFICULTY_POINTS[diff] || 1;
 
     const oldText = $('question-text').textContent;
     const isNew = oldText !== q.text;
@@ -253,9 +338,6 @@ function renderGame(state) {
     badge.textContent = DIFFICULTY_LABELS[diff] || diff;
     badge.style.background = DIFFICULTY_COLORS[diff] || '#666';
     badge.style.color = '#fff';
-    badge.style.padding = '2px 10px';
-    badge.style.borderRadius = '12px';
-    badge.style.fontSize = '0.8em';
 
     $('penalty-info').textContent = `⚡ ${pts} pt${pts > 1 ? 's' : ''}`;
     $('card-category').textContent = q.category || '';
@@ -325,6 +407,8 @@ function renderGame(state) {
     lastGuess.classList.add('hidden');
   }
 
+  $('threshold-display').textContent = `Limite ${state.penaltyThreshold} pts`;
+
   renderTable(state, currentPlayerId);
 
   $('btn-leave-game').classList.remove('hidden');
@@ -334,60 +418,72 @@ function renderGame(state) {
   checkChallengePopup(state);
 }
 
+// --- RENDER TABLE (CIRCULAR) ---
 function renderTable(state, currentPlayerId) {
   const maxPts = state.penaltyThreshold;
   const active = state.players.filter((p) => p.penaltyPoints < maxPts && state.status !== 'ended');
   const eliminated = state.players.filter((p) => p.penaltyPoints >= maxPts || state.status === 'ended');
   const ordered = [...active, ...eliminated];
 
-  $('game-players').innerHTML = ordered.map((p) => {
+  const ring = $('game-players');
+  ring.innerHTML = ordered.map((p, i) => {
     const isCurrent = currentPlayerId === p.id;
     const isEliminated = p.penaltyPoints >= maxPts || state.status === 'ended';
     const pct = Math.min(100, (p.penaltyPoints / maxPts) * 100);
     return `
-      <div class="table-seat ${isCurrent && state.status === 'playing' ? 'active-turn' : ''} ${isEliminated ? 'eliminated' : ''}">
-        <div class="seat-avatar">${getAvatar(p.name)}</div>
-        <div class="seat-name">${escapeHtml(p.name)} ${p.id === myPlayerId ? '<span class="seat-you">Vous</span>' : ''}</div>
-        <div class="seat-points">⚠️ ${p.penaltyPoints}/${maxPts}</div>
-        <div class="penalty-bar"><div class="penalty-bar-fill" style="width: ${pct}%"></div></div>
+      <div class="game-seat ${isCurrent && state.status === 'playing' ? 'active-turn' : ''} ${isEliminated ? 'eliminated' : ''}" style="animation-delay: ${i * 0.08}s">
+        <div class="seat-avatar">${p.avatar || '🦊'}</div>
+        <div class="seat-name">${escapeHtml(p.name)} ${p.id === myPlayerId ? '<span class="seat-you">(Vous)</span>' : ''}</div>
+        <div class="seat-points">⚠ ${p.penaltyPoints}
+          <span class="seat-penalty-fill"><span class="seat-penalty-fill-inner" style="width: ${pct}%"></span></span>
+        </div>
         ${isCurrent && state.status === 'playing' ? '<div class="seat-indicator">▶ TOUR</div>' : ''}
         ${isEliminated ? '<div class="seat-indicator lost">💀</div>' : ''}
       </div>
     `;
   }).join('');
+
+  requestAnimationFrame(() => positionSeats());
 }
 
+function positionSeats() {
+  const ring = $('game-players');
+  const seats = ring.querySelectorAll('.game-seat');
+  const count = seats.length;
+  if (count === 0) return;
+
+  const table = ring.closest('.poker-table');
+  const radius = table.offsetWidth * 0.42;
+
+  seats.forEach((seat, i) => {
+    const angle = (i / count) * 2 * Math.PI - Math.PI / 2;
+    const x = Math.cos(angle) * radius;
+    const y = Math.sin(angle) * radius;
+    seat.style.setProperty('--tx', x + 'px');
+    seat.style.setProperty('--ty', y + 'px');
+  });
+}
+
+// --- RENDER LOGS ---
 function renderLogs(state) {
   $('game-logs').innerHTML = state.logs.slice(-20).map((log) => {
     let text = '';
     const p = (id) => state.players.find((pl) => pl.id === id)?.name || 'Inconnu';
     switch (log.type) {
-      case 'gameStarted':
-        text = '🎬 Partie commencée !';
-        break;
-      case 'newQuestion':
-        text = `📝 ${escapeHtml(log.question)} (${DIFFICULTY_LABELS[log.difficulty] || log.difficulty})`;
-        break;
-      case 'guess':
-        text = `🔢 ${p(log.playerId)} → ${log.guessValue}`;
-        break;
-      case 'challenge':
-        text = `🚨 ${p(log.challengerId)} : Là t'abuses ! → ${p(log.loserId)} +${log.pts} pts`;
-        break;
-      case 'doubleDown':
-        text = `🔥 ${p(log.playerId)} : C'est toi qui abuses ! → +${log.pts} pts`;
-        break;
-      case 'gameEnded':
-        text = `🏁 ${log.reason}`;
-        break;
-      default:
-        text = JSON.stringify(log);
+      case 'gameStarted': text = '🎬 Partie commencée !'; break;
+      case 'newQuestion': text = `📝 ${escapeHtml(log.question)} (${DIFFICULTY_LABELS[log.difficulty] || log.difficulty})`; break;
+      case 'guess': text = `🔢 ${p(log.playerId)} → ${log.guessValue}`; break;
+      case 'challenge': text = `🚨 ${p(log.challengerId)} : Là t'abuses ! → ${p(log.loserId)} +${log.pts} pts`; break;
+      case 'doubleDown': text = `🔥 ${p(log.playerId)} : C'est toi qui abuses ! → +${log.pts} pts`; break;
+      case 'gameEnded': text = `🏁 ${log.reason}`; break;
+      default: text = JSON.stringify(log);
     }
     return `<div class="log-entry">${text}</div>`;
   }).join('');
   $('game-logs').scrollTop = $('game-logs').scrollHeight;
 }
 
+// --- CHALLENGE POPUP ---
 function checkChallengePopup(state) {
   const lastLog = state.logs[state.logs.length - 1];
   if (!lastLog || lastLog.type !== 'challenge') { lastLogCount = state.logs.length; return; }
@@ -399,6 +495,8 @@ function checkChallengePopup(state) {
   const guessed = p(lastLog.guessedId);
   const loser = p(lastLog.loserId);
   const challengerLost = lastLog.loserId === lastLog.challengerId;
+
+  flashEffect(challengerLost ? 'red' : 'green');
 
   const popup = $('challenge-popup');
   const body = $('challenge-popup-body');
@@ -426,6 +524,7 @@ function checkChallengePopup(state) {
   }, 4000);
 }
 
+// --- RENDER END ---
 function renderEnd(state) {
   showScreen('end-screen');
 
@@ -439,19 +538,14 @@ function renderEnd(state) {
   `;
 
   $('end-scores').innerHTML = state.players.map((p) => `
-    <div class="player-card ${p.id === loser.id ? 'eliminated' : ''}">
-      <div class="player-name">${getAvatar(p.name)} ${escapeHtml(p.name)} ${p.id === loser.id ? '😵' : '🎉'}</div>
-      <div class="player-points">⚠️ ${p.penaltyPoints} pts</div>
+    <div class="player-card">
+      <span class="player-name">${p.avatar || '🦊'} ${escapeHtml(p.name)} ${p.id === loser.id ? '😵' : ''}</span>
+      <span class="player-points">⚠ ${p.penaltyPoints} pts</span>
     </div>
   `).join('');
 }
 
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
+// --- SOCKET ---
 socket.on('gameUpdate', (gameState) => {
   state = gameState;
 
@@ -460,8 +554,15 @@ socket.on('gameUpdate', (gameState) => {
     renderLobby(gameState);
   } else if (gameState.status === 'playing') {
     renderGame(gameState);
+    requestAnimationFrame(() => positionSeats());
   } else if (gameState.status === 'ended') {
     renderEnd(gameState);
+  }
+});
+
+window.addEventListener('resize', () => {
+  if (state && state.status === 'playing') {
+    requestAnimationFrame(() => positionSeats());
   }
 });
 

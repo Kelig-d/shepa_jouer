@@ -64,10 +64,10 @@ function emitGameUpdate(io, gameId) {
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
 
-  socket.on('createGame', async ({ playerName, variantRules }, callback) => {
+  socket.on('createGame', async ({ playerName, playerAvatar, variantRules }, callback) => {
     try {
       const playerId = socket.id;
-      const state = await gameEngine.createGame(playerId, playerName, variantRules || []);
+      const state = await gameEngine.createGame(playerId, playerName, playerAvatar, variantRules || []);
       socket.join(state.id);
       socket.emit('gameCreated', { gameId: state.id, playerId });
       emitGameUpdate(io, state.id);
@@ -77,13 +77,28 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('joinGame', async ({ gameId, playerName }, callback) => {
+  socket.on('joinGame', async ({ gameId, playerName, playerAvatar }, callback) => {
     try {
       const playerId = socket.id;
-      const state = await gameEngine.joinGame(gameId, playerId, playerName);
+      const state = await gameEngine.joinGame(gameId, playerId, playerName, playerAvatar);
       socket.join(gameId);
       emitGameUpdate(io, gameId);
       if (callback) callback({ success: true, gameId, playerId });
+    } catch (err) {
+      if (callback) callback({ success: false, error: err.message });
+    }
+  });
+
+  socket.on('updateAvatar', async ({ gameId, avatar }, callback) => {
+    try {
+      const state = await gameEngine.getGame(gameId);
+      if (!state) throw new Error('Partie introuvable');
+      const player = state.players.find((p) => p.id === socket.id);
+      if (!player) throw new Error('Joueur introuvable');
+      player.avatar = avatar;
+      await gameEngine.saveGame(state);
+      emitGameUpdate(io, gameId);
+      if (callback) callback({ success: true });
     } catch (err) {
       if (callback) callback({ success: false, error: err.message });
     }

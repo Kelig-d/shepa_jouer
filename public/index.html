@@ -3,47 +3,90 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Jeux de Société</title>
+  <title>Là t'abuses ! — Le jeu télévisé</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <canvas id="bg-canvas"></canvas>
   <div id="bg-overlay"></div>
+  <div id="stage-lights">
+    <div class="stage-light light-1"></div>
+    <div class="stage-light light-2"></div>
+    <div class="stage-light light-3"></div>
+  </div>
+  <div id="flash-overlay" class="flash-overlay"></div>
+
   <div id="app">
+    <!-- LOBBY (accueil) -->
     <div id="lobby-screen" class="screen">
       <div class="container">
-        <h1>🎲 Jeux de Société</h1>
-        <p class="subtitle">Plateforme de mini-jeux multijoueur</p>
+        <div class="brand-header">
+          <div class="brand-logo">🎲</div>
+          <h1 class="brand-title">Là t'abuses<span class="brand-accent">!</span></h1>
+          <p class="brand-tagline">Le jeu de bluff télévisé</p>
+        </div>
 
         <div class="tabs">
-          <button class="tab active" data-tab="create">Créer une partie</button>
-          <button class="tab" data-tab="join">Rejoindre une partie</button>
+          <button class="tab active" data-tab="create">
+            <span class="tab-icon">✨</span> Créer
+          </button>
+          <button class="tab" data-tab="join">
+            <span class="tab-icon">🚪</span> Rejoindre
+          </button>
         </div>
 
         <div id="create-tab" class="tab-content active">
           <div class="form-group">
-            <label>Pseudo</label>
-            <input type="text" id="host-name" placeholder="Votre pseudo" maxlength="20">
+            <label>Votre pseudo</label>
+            <input type="text" id="host-name" placeholder="Pseudo (ex: Champion)" maxlength="20">
           </div>
+
           <div class="form-group">
-            <label>Variantes</label>
-            <label class="checkbox-label">
-              <input type="checkbox" id="variant-double"> "C'est toi qui abuses !" (Double défi)
-            </label>
+            <label>Choisissez votre avatar</label>
+            <div id="host-avatar-picker" class="avatar-picker"></div>
           </div>
-          <button class="btn btn-primary" id="btn-create-game">Créer la partie</button>
+
+          <div class="form-group">
+            <label>Variantes du jeu</label>
+            <div class="variant-cards">
+              <div class="variant-card" data-variant="double">
+                <div class="variant-card-inner">
+                  <div class="variant-icon">🔥</div>
+                  <div class="variant-body">
+                    <div class="variant-name">C'est toi qui abuses !</div>
+                    <div class="variant-desc">Double-toi sur ton propre pari pour doubler la mise</div>
+                  </div>
+                  <button type="button" class="variant-info-btn" data-rules="double">ℹ️</button>
+                  <div class="variant-toggle">
+                    <span class="variant-toggle-dot"></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <input type="checkbox" id="variant-double" class="hidden">
+          </div>
+
+          <button class="btn btn-primary btn-large" id="btn-create-game">
+            <span>🎬 Lancer la partie</span>
+          </button>
         </div>
 
         <div id="join-tab" class="tab-content">
           <div class="form-group">
-            <label>Pseudo</label>
-            <input type="text" id="join-name" placeholder="Votre pseudo" maxlength="20">
+            <label>Votre pseudo</label>
+            <input type="text" id="join-name" placeholder="Pseudo" maxlength="20">
+          </div>
+          <div class="form-group">
+            <label>Choisissez votre avatar</label>
+            <div id="join-avatar-picker" class="avatar-picker"></div>
           </div>
           <div class="form-group">
             <label>Code de la partie</label>
-            <input type="text" id="game-code" placeholder="Code à 6 caractères (ex: X7K2M9)">
+            <input type="text" id="game-code" placeholder="6 caractères" maxlength="6" class="code-input">
           </div>
-          <button class="btn btn-primary" id="btn-join-game">Rejoindre</button>
+          <button class="btn btn-primary btn-large" id="btn-join-game">
+            <span>🚀 Entrer en scène</span>
+          </button>
         </div>
 
         <div id="session-bar" class="session-bar hidden">
@@ -55,26 +98,46 @@
       </div>
     </div>
 
+    <!-- LOBBY DE PARTIE -->
     <div id="lobby-game-screen" class="screen hidden">
       <div class="container">
-        <h1>🎲 Salle d'attente</h1>
-        <div class="game-info">
-          <p><strong>Code de la partie :</strong> <span id="lobby-game-code" class="game-code-display" title="Cliquez pour copier"></span></p>
-          <p><strong>Hôte :</strong> <span id="lobby-host"></span></p>
-          <p><strong>Variantes :</strong> <span id="lobby-variants">Aucune</span></p>
+        <h1 class="lobby-title">🎬 Salle d'attente</h1>
+
+        <div class="lobby-code-box">
+          <div class="lobby-code-label">Code de la partie</div>
+          <div id="lobby-game-code" class="lobby-code-value" title="Cliquez pour copier"></div>
+          <div class="lobby-code-hint">📋 Cliquez pour copier</div>
         </div>
-        <h3>Joueurs (<span id="lobby-player-count">0</span>)</h3>
+
+        <div class="lobby-info-row">
+          <div class="lobby-info-item">
+            <span class="lobby-info-label">Hôte</span>
+            <span id="lobby-host" class="lobby-info-value"></span>
+          </div>
+          <div class="lobby-info-item">
+            <span class="lobby-info-label">Variantes</span>
+            <span id="lobby-variants" class="lobby-info-value">Aucune</span>
+          </div>
+        </div>
+
+        <h3 class="section-title">Joueurs présents (<span id="lobby-player-count">0</span>)</h3>
         <ul id="lobby-players" class="player-list"></ul>
-        <button class="btn btn-primary hidden" id="btn-start-game">Commencer la partie</button>
+
+        <button class="btn btn-primary btn-large hidden" id="btn-start-game">
+          <span>🎬 Démarrer le jeu</span>
+        </button>
         <button class="btn btn-secondary" id="btn-leave-lobby">Quitter</button>
       </div>
     </div>
 
+    <!-- ECRAN DE JEU -->
     <div id="game-screen" class="screen hidden">
-      <div class="container">
-        <div class="game-header">
-          <h1>🎲 Là t'abuses !</h1>
-          <span id="game-round" class="badge">Manche en cours</span>
+      <div class="game-stage">
+        <div class="stage-header">
+          <h1 class="stage-title">🎲 Là t'abuses !</h1>
+          <span id="game-round" class="badge live-badge">
+            <span class="live-dot"></span> EN JEU
+          </span>
         </div>
 
         <div id="question-card" class="quiz-card">
@@ -89,66 +152,87 @@
             </div>
             <div class="quiz-card-footer">
               <span id="card-category" class="card-category"></span>
-              <span id="card-number" class="card-number">1/200</span>
+              <span id="card-number" class="card-number">Q1</span>
             </div>
           </div>
         </div>
 
-        <div id="last-guess-info" class="card info-card hidden">
-          <p>Dernière supposition : <strong id="last-guess-value">-</strong> par <strong id="last-guess-player">-</strong></p>
+        <div id="last-guess-info" class="last-guess hidden">
+          <div class="last-guess-label">Dernière supposition</div>
+          <div class="last-guess-body">
+            <span id="last-guess-player" class="last-guess-name">-</span>
+            <span class="last-guess-arrow">→</span>
+            <span id="last-guess-value" class="last-guess-value">-</span>
+          </div>
         </div>
 
         <div class="game-controls">
           <div id="guess-controls">
-            <div class="form-group">
-              <label>Votre supposition (doit être supérieure à la dernière)</label>
-              <input type="number" id="guess-input" min="0" placeholder="Entrez un nombre">
+            <div class="inline-form">
+              <input type="number" id="guess-input" min="0" placeholder="Votre nombre">
+              <button class="btn btn-success" id="btn-submit-guess">✓ Soumettre</button>
             </div>
-            <button class="btn btn-success" id="btn-submit-guess">Soumettre</button>
           </div>
 
           <div id="challenge-controls">
-            <button class="btn btn-danger" id="btn-challenge">Là t'abuses ! 🚨</button>
-            <button class="btn btn-warning hidden" id="btn-double-down">C'est toi qui abuses ! 🔥</button>
+            <button class="btn btn-danger hidden" id="btn-challenge">
+              <span class="btn-icon">🚨</span> Là t'abuses !
+            </button>
+            <button class="btn btn-warning hidden" id="btn-double-down">
+              <span class="btn-icon">🔥</span> C'est toi qui abuses !
+            </button>
           </div>
         </div>
 
-        <div id="challenge-result" class="card result-card hidden"></div>
-
-        <div class="table-container">
-          <div id="game-players" class="player-grid"></div>
-          <div class="table-center">
-            <div class="table-icon">🎲</div>
-            <span id="threshold-display" class="table-label">0/10</span>
+        <!-- TABLE DE JEU CIRCULAIRE -->
+        <div class="poker-table">
+          <div class="poker-table-felt">
+            <div class="table-center">
+              <div class="table-icon">🎲</div>
+              <div class="table-pot" id="threshold-display">Limite 10 pts</div>
+            </div>
           </div>
+          <div id="game-players" class="seats-ring"></div>
         </div>
 
         <button class="btn btn-secondary hidden" id="btn-leave-game">Quitter la partie</button>
       </div>
     </div>
 
+    <!-- POPUP DE CHALLENGE -->
     <div id="challenge-popup" class="challenge-popup hidden">
       <div id="challenge-popup-body" class="challenge-popup-body"></div>
       <div class="challenge-popup-bar"></div>
     </div>
 
-    <div id="log-fab" class="log-fab">
-      <div class="log-fab-header">
+    <!-- MODAL DE REGLES -->
+    <div id="rules-modal" class="rules-modal hidden">
+      <div class="rules-modal-body">
+        <button class="rules-modal-close" id="rules-modal-close">×</button>
+        <div id="rules-modal-content"></div>
+      </div>
+    </div>
+
+    <!-- JOURNAL FAB -->
+    <div id="log-fab" class="log-fab collapsed">
+      <div class="log-fab-header" id="log-fab-header">
         <span>📜 Journal</span>
-        <button id="log-fab-toggle" class="log-fab-toggle">−</button>
+        <button id="log-fab-toggle" class="log-fab-toggle">+</button>
       </div>
       <div id="game-logs" class="logs"></div>
     </div>
 
+    <!-- FIN DE PARTIE -->
     <div id="end-screen" class="screen hidden">
       <div class="container">
-        <h1>🏆 Partie terminée !</h1>
-        <div id="end-result" class="card"></div>
-        <h3>Scores finaux</h3>
-        <div id="end-scores" class="player-grid"></div>
+        <div class="end-trophy">🏆</div>
+        <h1 class="end-title">Partie terminée !</h1>
+        <div id="end-result" class="end-result"></div>
+        <h3 class="section-title">Scores finaux</h3>
+        <div id="end-scores" class="end-scores"></div>
         <div class="end-buttons">
-          <button class="btn btn-primary" id="btn-replay">Rejouer</button>
-          <button class="btn btn-secondary" id="btn-back-lobby">Retour à l'accueil</button>
+          <button class="btn btn-primary" id="btn-replay">🔄 Rejouer</button>
+          <button class="btn btn-secondary" id="btn-back-lobby">🏠 Accueil</button>
         </div>
       </div>
     </div>

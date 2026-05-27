@@ -28,11 +28,11 @@ function generateCode() {
   return code;
 }
 
-function getInitialState(hostId, hostName, variantRules = []) {
+function getInitialState(hostId, hostName, hostAvatar, variantRules = []) {
   return {
     id: generateCode(),
     status: GAME_STATUS.WAITING,
-    players: [{ id: hostId, name: hostName, penaltyPoints: 0 }],
+    players: [{ id: hostId, name: hostName, avatar: hostAvatar || '🦊', penaltyPoints: 0 }],
     turnOrder: [hostId],
     currentTurnIndex: 0,
     currentQuestion: null,
@@ -53,10 +53,10 @@ class LaTabusesGame {
     this.redis = redis;
   }
 
-  async createGame(hostId, hostName, variantRules) {
+  async createGame(hostId, hostName, hostAvatar, variantRules) {
     let state, key;
     for (let attempt = 0; attempt < 10; attempt++) {
-      state = getInitialState(hostId, hostName, variantRules);
+      state = getInitialState(hostId, hostName, hostAvatar, variantRules);
       key = redisKey(ROOM_PREFIX, state.id);
       const exists = await this.redis.exists(key);
       if (!exists) break;
@@ -76,14 +76,14 @@ class LaTabusesGame {
     await this.redis.set(key, JSON.stringify(state), 'EX', GAME_TTL);
   }
 
-  async joinGame(gameId, playerId, playerName) {
+  async joinGame(gameId, playerId, playerName, playerAvatar) {
     const state = await this.getGame(gameId);
     if (!state) throw new Error('Partie introuvable');
     if (state.status !== GAME_STATUS.WAITING) throw new Error('Partie déjà commencée');
     if (state.players.find((p) => p.id === playerId)) return state;
     if (state.players.length >= 10) throw new Error('Partie complète (max 10 joueurs)');
 
-    state.players.push({ id: playerId, name: playerName, penaltyPoints: 0 });
+    state.players.push({ id: playerId, name: playerName, avatar: playerAvatar || '🐼', penaltyPoints: 0 });
     state.turnOrder.push(playerId);
     await this.saveGame(state);
     return state;
