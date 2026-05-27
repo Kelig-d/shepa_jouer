@@ -122,8 +122,7 @@ class LeTozGame {
     if (state.isSolo) {
       state.currentPlayerId = state.hostId;
     } else {
-      const randomIndex = Math.floor(Math.random() * activePlayers.length);
-      state.currentPlayerId = activePlayers[randomIndex].id;
+      state.currentPlayerId = state.turnOrder[state.currentTurnIndex];
     }
 
     if (text.includes('{Joueur}')) {
