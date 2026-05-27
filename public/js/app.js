@@ -382,7 +382,8 @@ function renderLobby(state) {
 
   const isHost = myPlayerId === state.hostId;
   const startBtn = $('btn-start-game');
-  if (isHost && state.players.length >= 2) {
+  const minPlayers = state.isSolo ? 1 : 2;
+  if (isHost && state.players.length >= minPlayers) {
     startBtn.classList.remove('hidden');
   } else {
     startBtn.classList.add('hidden');
