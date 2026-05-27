@@ -126,11 +126,7 @@ class LeTozGame {
     let text = card.text;
     const toz = card.toz || 0;
 
-    if (state.isSolo) {
-      state.currentPlayerId = state.hostId;
-    } else {
-      state.currentPlayerId = state.turnOrder[state.currentTurnIndex];
-    }
+    state.currentPlayerId = state.turnOrder[state.currentTurnIndex];
 
     if (text.includes('{Joueur}')) {
       const others = activePlayers.filter((p) => p.id !== state.currentPlayerId);
@@ -145,9 +141,7 @@ class LeTozGame {
     state.currentCard = { type: isVerite ? 'verite' : 'action', text, toz, tier: card.tier };
     state.logs.push({ type: 'cardDrawn', playerId: state.currentPlayerId, cardType: state.currentCard.type, toz });
 
-    if (!state.isSolo) {
-      state.currentTurnIndex = (state.currentTurnIndex + 1) % state.turnOrder.length;
-    }
+    state.currentTurnIndex = (state.currentTurnIndex + 1) % state.turnOrder.length;
     await this.saveGame(state);
     return state;
   }
