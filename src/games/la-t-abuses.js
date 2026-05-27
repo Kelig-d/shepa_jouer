@@ -282,6 +282,24 @@ class LaTabusesGame {
     return state;
   }
 
+  async resetGame(gameId) {
+    const state = await this.getGame(gameId);
+    if (!state) throw new Error('Partie introuvable');
+
+    state.status = GAME_STATUS.WAITING;
+    state.currentQuestion = null;
+    state.currentGuess = null;
+    state.lastGuessValue = null;
+    state.lastGuesserId = null;
+    state.currentTurnIndex = 0;
+    state.firstPlayerIndex = 0;
+    state.logs = [];
+    state.players.forEach((p) => { p.penaltyPoints = 0; });
+
+    await this.saveGame(state);
+    return state;
+  }
+
   hasVariant(state, variant) {
     return state.variantRules && state.variantRules.includes(variant);
   }

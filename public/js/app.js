@@ -61,6 +61,19 @@ function flashEffect(type) {
   overlay.classList.add('flash-' + type);
 }
 
+// --- GAME TYPE SELECTION ---
+document.querySelectorAll('.game-type-card').forEach((card) => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.game-type-card').forEach((c) => c.classList.remove('active'));
+    card.classList.add('active');
+    const game = card.dataset.game;
+    $('game-type-input').value = game;
+    document.querySelectorAll('.game-options').forEach((o) => o.classList.add('hidden'));
+    const opts = $(game + '-options');
+    if (opts) opts.classList.remove('hidden');
+  });
+});
+
 // --- AVATAR PICKER ---
 function initAvatarPicker(containerId, onSelect) {
   const container = $(containerId);
@@ -101,7 +114,7 @@ document.querySelectorAll('.variant-card').forEach((card) => {
     if (e.target.closest('.variant-info-btn')) return;
     card.classList.toggle('active');
     const variant = card.dataset.variant;
-    const checkbox = $(['variant-', variant].join(''));
+    const checkbox = $('variant-' + variant);
     if (checkbox) checkbox.checked = card.classList.contains('active');
   });
 });
@@ -139,13 +152,14 @@ $('btn-create-game').addEventListener('click', async () => {
   if (!playerName) { showError('Entrez un pseudo'); return; }
 
   const playerAvatar = hostAvatarPicker.getValue() || '🦊';
+  const gameType = $('game-type-input').value || 'la-t-abuses';
   const variantRules = [];
-  if ($('variant-double').checked) variantRules.push('double');
+  if ($('variant-double') && $('variant-double').checked) variantRules.push('double');
 
   myAvatar = playerAvatar;
 
   try {
-    const res = await emitWithCallback('createGame', { playerName, playerAvatar, variantRules });
+    const res = await emitWithCallback('createGame', { playerName, playerAvatar, gameType, variantRules });
     currentGameId = res.gameId;
     myPlayerId = res.playerId;
     sessionStorage.setItem('shepa_playerName', playerName);
@@ -227,6 +241,25 @@ $('btn-double-down').addEventListener('click', async () => {
   }
 });
 
+// --- LE TOZ ---
+$('btn-toz-draw').addEventListener('click', async () => {
+  try {
+    await emitWithCallback('drawCard', { gameId: currentGameId });
+    $('btn-toz-draw').classList.add('hidden');
+    $('btn-toz-next').classList.remove('hidden');
+  } catch (err) {
+    showError(err.message);
+  }
+});
+
+$('btn-toz-next').addEventListener('click', async () => {
+  try {
+    await emitWithCallback('drawCard', { gameId: currentGameId });
+  } catch (err) {
+    showError(err.message);
+  }
+});
+
 $('btn-leave-game').addEventListener('click', async () => {
   try {
     await emitWithCallback('leaveGame', { gameId: currentGameId });
@@ -235,9 +268,10 @@ $('btn-leave-game').addEventListener('click', async () => {
   showScreen('lobby-screen');
 });
 
-$('btn-replay').addEventListener('click', () => {
-  clearSession();
-  showScreen('lobby-screen');
+$('btn-replay').addEventListener('click', async () => {
+  try {
+    await emitWithCallback('resetGame', { gameId: currentGameId });
+  } catch (e) {}
 });
 
 $('btn-back-lobby').addEventListener('click', () => {
@@ -294,15 +328,23 @@ async function tryReconnect() {
   }
 }
 
+const GAME_NAMES = {
+  'la-t-abuses': '🎲 Là t\'abuses !',
+  'le-toz': '🃏 Le Toz',
+};
+
 // --- RENDER LOBBY ---
 function renderLobby(state) {
   $('lobby-game-code').textContent = state.id;
-  $('lobby-host').textContent = (state.players.find((p) => p.id === state.hostId)?.name) || 'Inconnu';
+
+  const host = state.players.find((p) => p.id === state.hostId);
+  $('lobby-host').textContent = host ? (host.avatar || '') + ' ' + host.name : 'Inconnu';
   $('lobby-player-count').textContent = state.players.length;
 
   const variants = [];
-  if (state.variantRules.includes('double')) variants.push('C\'est toi qui abuses');
+  if (state.variantRules && state.variantRules.includes('double')) variants.push('C\'est toi qui abuses');
   $('lobby-variants').textContent = variants.length ? variants.join(', ') : 'Aucune';
+  $('lobby-game-type').textContent = GAME_NAMES[state.gameType] || state.gameType || 'Là t\'abuses !';
 
   $('lobby-players').innerHTML = state.players.map((p) => `
     <li>
@@ -324,6 +366,32 @@ function renderLobby(state) {
 function renderGame(state) {
   showScreen('game-screen');
 
+  $('game-title').textContent = GAME_NAMES[state.gameType] || 'Là t\'abuses !';
+
+  if (state.gameType === 'le-toz') {
+    renderLeToz(state);
+    $('la-tabuses-content').classList.add('hidden');
+    $('le-toz-content').classList.remove('hidden');
+  } else {
+    renderLaTabuses(state);
+    $('le-toz-content').classList.add('hidden');
+    $('la-tabuses-content').classList.remove('hidden');
+  }
+
+  $('threshold-display').textContent = state.penaltyThreshold ? `Limite ${state.penaltyThreshold} pts` : '·';
+
+  renderTable(state, state.turnOrder[state.currentTurnIndex]);
+
+  $('btn-leave-game').classList.remove('hidden');
+
+  renderLogs(state);
+
+  if (state.gameType !== 'le-toz') {
+    checkChallengePopup(state);
+  }
+}
+
+function renderLaTabuses(state) {
   if (state.currentQuestion) {
     const q = state.currentQuestion;
     const diff = q.difficulty || 'facile';
@@ -382,7 +450,7 @@ function renderGame(state) {
       challengeBtn.disabled = true;
     }
 
-    if (state.lastGuesserId === myPlayerId && state.variantRules.includes('double')) {
+    if (state.lastGuesserId === myPlayerId && state.variantRules && state.variantRules.includes('double')) {
       doubleDownBtn.classList.remove('hidden');
       doubleDownBtn.disabled = false;
     } else {
@@ -406,38 +474,52 @@ function renderGame(state) {
   } else {
     lastGuess.classList.add('hidden');
   }
+}
 
-  $('threshold-display').textContent = `Limite ${state.penaltyThreshold} pts`;
+function renderLeToz(state) {
+  const card = state.currentCard;
+  if (card) {
+    const player = state.players.find((p) => p.id === state.currentPlayerId);
 
-  renderTable(state, currentPlayerId);
+    $('toz-type').textContent = card.type === 'verite' ? 'Vérité' : 'Action';
+    $('toz-type').className = 'toz-type ' + card.type;
+    $('toz-player').textContent = player ? (player.avatar || '') + ' ' + player.name : '';
+    $('toz-text').textContent = card.text;
 
-  $('btn-leave-game').classList.remove('hidden');
+    $('btn-toz-draw').classList.add('hidden');
+    $('btn-toz-next').classList.remove('hidden');
+  } else {
+    $('toz-type').textContent = '';
+    $('toz-type').className = 'toz-type';
+    $('toz-player').textContent = '';
+    $('toz-text').textContent = 'Prêt à piocher ?';
 
-  renderLogs(state);
-
-  checkChallengePopup(state);
+    $('btn-toz-draw').classList.remove('hidden');
+    $('btn-toz-next').classList.add('hidden');
+  }
 }
 
 // --- RENDER TABLE (CIRCULAR) ---
 function renderTable(state, currentPlayerId) {
-  const maxPts = state.penaltyThreshold;
-  const active = state.players.filter((p) => p.penaltyPoints < maxPts && state.status !== 'ended');
-  const eliminated = state.players.filter((p) => p.penaltyPoints >= maxPts || state.status === 'ended');
+  const maxPts = state.penaltyThreshold || 999;
+  const ended = state.status === 'ended';
+  const active = state.players.filter((p) => p.penaltyPoints < maxPts && !ended);
+  const eliminated = state.players.filter((p) => p.penaltyPoints >= maxPts || ended);
   const ordered = [...active, ...eliminated];
 
   const ring = $('game-players');
   ring.innerHTML = ordered.map((p, i) => {
     const isCurrent = currentPlayerId === p.id;
-    const isEliminated = p.penaltyPoints >= maxPts || state.status === 'ended';
-    const pct = Math.min(100, (p.penaltyPoints / maxPts) * 100);
+    const isEliminated = p.penaltyPoints >= maxPts || ended;
+    const pct = maxPts < 999 ? Math.min(100, (p.penaltyPoints / maxPts) * 100) : 0;
     return `
-      <div class="game-seat ${isCurrent && state.status === 'playing' ? 'active-turn' : ''} ${isEliminated ? 'eliminated' : ''}" style="animation-delay: ${i * 0.08}s">
+      <div class="game-seat ${isCurrent && !ended ? 'active-turn' : ''} ${isEliminated ? 'eliminated' : ''}" style="animation-delay: ${i * 0.08}s">
         <div class="seat-avatar">${p.avatar || '🦊'}</div>
         <div class="seat-name">${escapeHtml(p.name)} ${p.id === myPlayerId ? '<span class="seat-you">(Vous)</span>' : ''}</div>
-        <div class="seat-points">⚠ ${p.penaltyPoints}
-          <span class="seat-penalty-fill"><span class="seat-penalty-fill-inner" style="width: ${pct}%"></span></span>
+        <div class="seat-points">${maxPts < 999 ? '⚠ ' + p.penaltyPoints : ''}
+          ${maxPts < 999 ? '<span class="seat-penalty-fill"><span class="seat-penalty-fill-inner" style="width: ' + pct + '%"></span></span>' : ''}
         </div>
-        ${isCurrent && state.status === 'playing' ? '<div class="seat-indicator">▶ TOUR</div>' : ''}
+        ${isCurrent && !ended ? '<div class="seat-indicator">▶ TOUR</div>' : ''}
         ${isEliminated ? '<div class="seat-indicator lost">💀</div>' : ''}
       </div>
     `;
@@ -476,6 +558,7 @@ function renderLogs(state) {
       case 'challenge': text = `🚨 ${p(log.challengerId)} : Là t'abuses ! → ${p(log.loserId)} +${log.pts} pts`; break;
       case 'doubleDown': text = `🔥 ${p(log.playerId)} : C'est toi qui abuses ! → +${log.pts} pts`; break;
       case 'gameEnded': text = `🏁 ${log.reason}`; break;
+      case 'cardDrawn': text = `🃏 ${p(log.playerId)} pioche une carte ${log.cardType === 'verite' ? 'Vérité' : 'Action'}`; break;
       default: text = JSON.stringify(log);
     }
     return `<div class="log-entry">${text}</div>`;
@@ -531,9 +614,18 @@ function renderEnd(state) {
   const loser = state.players.reduce((a, b) => a.penaltyPoints > b.penaltyPoints ? a : b);
   const winners = state.players.filter((p) => p.id !== loser.id);
 
+  const lastChallengeLog = [...state.logs].reverse().find((l) => l.type === 'challenge' || l.type === 'doubleDown');
+  const lastAnswer = lastChallengeLog ? lastChallengeLog.answer : (state.currentQuestion ? state.currentQuestion.answer : null);
+
+  let answerHtml = '';
+  if (lastAnswer !== null) {
+    answerHtml = `<div class="end-answer">La réponse était : <strong>${escapeHtml(String(lastAnswer))}</strong></div>`;
+  }
+
   $('end-result').innerHTML = `
     <h2>😵 ${escapeHtml(loser.name)} a perdu !</h2>
     <p>Avec ${loser.penaltyPoints} points de pénalité</p>
+    ${answerHtml}
     <p>🎉 Félicitations aux gagnants : ${winners.map((w) => escapeHtml(w.name)).join(', ')}</p>
   `;
 
@@ -561,7 +653,7 @@ socket.on('gameUpdate', (gameState) => {
 });
 
 window.addEventListener('resize', () => {
-  if (state && state.status === 'playing') {
+  if (state && (state.status === 'playing' || state.status === 'ended')) {
     requestAnimationFrame(() => positionSeats());
   }
 });

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Là t'abuses ! — Le jeu télévisé</title>
+  <title>Shepa Jouer</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -22,8 +22,8 @@
       <div class="container">
         <div class="brand-header">
           <div class="brand-logo">🎲</div>
-          <h1 class="brand-title">Là t'abuses<span class="brand-accent">!</span></h1>
-          <p class="brand-tagline">Le jeu de bluff télévisé</p>
+          <h1 class="brand-title">Shepa Jouer</h1>
+          <p class="brand-tagline">La plateforme de jeux</p>
         </div>
 
         <div class="tabs">
@@ -47,23 +47,59 @@
           </div>
 
           <div class="form-group">
-            <label>Variantes du jeu</label>
-            <div class="variant-cards">
-              <div class="variant-card" data-variant="double">
-                <div class="variant-card-inner">
-                  <div class="variant-icon">🔥</div>
-                  <div class="variant-body">
-                    <div class="variant-name">C'est toi qui abuses !</div>
-                    <div class="variant-desc">Double-toi sur ton propre pari pour doubler la mise</div>
+            <label>Choisissez un jeu</label>
+            <div class="game-type-cards">
+              <div class="game-type-card active" data-game="la-t-abuses">
+                <div class="game-type-card-inner">
+                  <div class="game-type-icon">🎲</div>
+                  <div class="game-type-body">
+                    <div class="game-type-name">Là t'abuses !</div>
+                    <div class="game-type-desc">Devinez des nombres et défiez les autres joueurs</div>
                   </div>
-                  <button type="button" class="variant-info-btn" data-rules="double">ℹ️</button>
-                  <div class="variant-toggle">
-                    <span class="variant-toggle-dot"></span>
+                  <div class="game-type-check">✓</div>
+                </div>
+              </div>
+              <div class="game-type-card" data-game="le-toz">
+                <div class="game-type-card-inner">
+                  <div class="game-type-icon">🃏</div>
+                  <div class="game-type-body">
+                    <div class="game-type-name">Le Toz</div>
+                    <div class="game-type-desc">Vérités ou actions pimentées, désigné au hasard</div>
                   </div>
+                  <div class="game-type-check">✓</div>
                 </div>
               </div>
             </div>
-            <input type="checkbox" id="variant-double" class="hidden">
+            <input type="hidden" id="game-type-input" value="la-t-abuses">
+          </div>
+
+          <div id="la-t-abuses-options" class="game-options">
+            <div class="form-group">
+              <label>Variantes</label>
+              <div class="variant-cards">
+                <div class="variant-card" data-variant="double">
+                  <div class="variant-card-inner">
+                    <div class="variant-icon">🔥</div>
+                    <div class="variant-body">
+                      <div class="variant-name">C'est toi qui abuses !</div>
+                      <div class="variant-desc">Double-toi sur ton propre pari pour doubler la mise</div>
+                    </div>
+                    <button type="button" class="variant-info-btn" data-rules="double">ℹ️</button>
+                    <div class="variant-toggle">
+                      <span class="variant-toggle-dot"></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <input type="checkbox" id="variant-double" class="hidden">
+            </div>
+          </div>
+
+          <div id="le-toz-options" class="game-options hidden">
+            <div class="form-group">
+              <label>Options du Toz</label>
+              <div class="game-options-info">Les joueurs piochent des cartes Vérité ou Action au hasard. Préparez-vous à des défis spicy ! 🌶️</div>
+            </div>
           </div>
 
           <button class="btn btn-primary btn-large" id="btn-create-game">
@@ -118,6 +154,10 @@
             <span class="lobby-info-label">Variantes</span>
             <span id="lobby-variants" class="lobby-info-value">Aucune</span>
           </div>
+          <div class="lobby-info-item">
+            <span class="lobby-info-label">Jeu</span>
+            <span id="lobby-game-type" class="lobby-info-value"></span>
+          </div>
         </div>
 
         <h3 class="section-title">Joueurs présents (<span id="lobby-player-count">0</span>)</h3>
@@ -134,53 +174,75 @@
     <div id="game-screen" class="screen hidden">
       <div class="game-stage">
         <div class="stage-header">
-          <h1 class="stage-title">🎲 Là t'abuses !</h1>
+          <h1 class="stage-title">🎲 <span id="game-title">Là t'abuses !</span></h1>
           <span id="game-round" class="badge live-badge">
             <span class="live-dot"></span> EN JEU
           </span>
         </div>
 
-        <div id="question-card" class="quiz-card">
-          <div class="quiz-card-inner">
-            <div class="quiz-card-badge">
-              <span id="difficulty-badge" class="badge-difficulty"></span>
-              <span id="penalty-info" class="penalty-info"></span>
+        <!-- LA T'ABUSES CONTENT -->
+        <div id="la-tabuses-content">
+          <div id="question-card" class="quiz-card">
+            <div class="quiz-card-inner">
+              <div class="quiz-card-badge">
+                <span id="difficulty-badge" class="badge-difficulty"></span>
+                <span id="penalty-info" class="penalty-info"></span>
+              </div>
+              <div class="quiz-card-content">
+                <p id="question-text" class="question-text">Chargement...</p>
+                <p class="question-hint">Les réponses sont des nombres entiers</p>
+              </div>
+              <div class="quiz-card-footer">
+                <span id="card-category" class="card-category"></span>
+                <span id="card-number" class="card-number">Q1</span>
+              </div>
             </div>
-            <div class="quiz-card-content">
-              <p id="question-text" class="question-text">Chargement...</p>
-              <p class="question-hint">Les réponses sont des nombres entiers</p>
+          </div>
+
+          <div id="last-guess-info" class="last-guess hidden">
+            <div class="last-guess-label">Dernière supposition</div>
+            <div class="last-guess-body">
+              <span id="last-guess-player" class="last-guess-name">-</span>
+              <span class="last-guess-arrow">→</span>
+              <span id="last-guess-value" class="last-guess-value">-</span>
             </div>
-            <div class="quiz-card-footer">
-              <span id="card-category" class="card-category"></span>
-              <span id="card-number" class="card-number">Q1</span>
+          </div>
+
+          <div class="game-controls">
+            <div id="guess-controls">
+              <div class="inline-form">
+                <input type="number" id="guess-input" min="0" placeholder="Votre nombre">
+                <button class="btn btn-success" id="btn-submit-guess">✓ Soumettre</button>
+              </div>
+            </div>
+
+            <div id="challenge-controls">
+              <button class="btn btn-danger hidden" id="btn-challenge">
+                <span class="btn-icon">🚨</span> Là t'abuses !
+              </button>
+              <button class="btn btn-warning hidden" id="btn-double-down">
+                <span class="btn-icon">🔥</span> C'est toi qui abuses !
+              </button>
             </div>
           </div>
         </div>
 
-        <div id="last-guess-info" class="last-guess hidden">
-          <div class="last-guess-label">Dernière supposition</div>
-          <div class="last-guess-body">
-            <span id="last-guess-player" class="last-guess-name">-</span>
-            <span class="last-guess-arrow">→</span>
-            <span id="last-guess-value" class="last-guess-value">-</span>
-          </div>
-        </div>
-
-        <div class="game-controls">
-          <div id="guess-controls">
-            <div class="inline-form">
-              <input type="number" id="guess-input" min="0" placeholder="Votre nombre">
-              <button class="btn btn-success" id="btn-submit-guess">✓ Soumettre</button>
+        <!-- LE TOZ CONTENT -->
+        <div id="le-toz-content" class="hidden">
+          <div id="toz-card" class="toz-card">
+            <div class="toz-card-inner">
+              <div class="toz-card-header">
+                <span id="toz-type" class="toz-type"></span>
+                <span id="toz-player" class="toz-player"></span>
+              </div>
+              <div class="toz-card-content">
+                <p id="toz-text" class="toz-text">Prêt à piocher ?</p>
+              </div>
+              <div class="toz-card-footer">
+                <button class="btn btn-primary" id="btn-toz-draw">🃏 Piocher une carte</button>
+                <button class="btn btn-secondary hidden" id="btn-toz-next">⏭ Suivant</button>
+              </div>
             </div>
-          </div>
-
-          <div id="challenge-controls">
-            <button class="btn btn-danger hidden" id="btn-challenge">
-              <span class="btn-icon">🚨</span> Là t'abuses !
-            </button>
-            <button class="btn btn-warning hidden" id="btn-double-down">
-              <span class="btn-icon">🔥</span> C'est toi qui abuses !
-            </button>
           </div>
         </div>
 
@@ -189,7 +251,7 @@
           <div class="poker-table-felt">
             <div class="table-center">
               <div class="table-icon">🎲</div>
-              <div class="table-pot" id="threshold-display">Limite 10 pts</div>
+              <div class="table-pot" id="threshold-display">·</div>
             </div>
           </div>
           <div id="game-players" class="seats-ring"></div>
