@@ -1,0 +1,27 @@
+﻿## Summary
+
+Ajout complet du jeu **Le Toz** avec 1000+ cartes Vérité/Action, filtrage NSFW par potentiomètre, mode solo et multijoueur.
+
+### 🃏 1000+ cartes externes (`questions/toz.js`)
+- 455 cartes avec `{ text, tier, toz }` — tier = niveau NSFW (0-4), toz = gorgées de pénalité
+- Importées dans le moteur de jeu au lieu des tableaux hardcodés dans `le-toz.js`
+- Suppression de ~1050 lignes de cartes en dur dans le code
+
+### 🎚️ Potentiomètre NSFW
+- Remplacement des 5 boutons par un `<input type="range">` slider avec 5 crans (0-4)
+- Labels colorés et description dynamique selon le niveau
+- Les cartes sont filtrées par `tier <= nsfwLevel`
+
+### 🎮 Mode Solo / Multijoueur
+- Toggle dans la UI : **Solo** (1 téléphone, le host lit) ou **Multijoueur** (chacun sur son appareil)
+- En solo : pas de rotation de tour, host toujours désigné, boutons Piocher/Suivant invisibles pour les autres
+- Pas de limite à 2 joueurs minimum en solo
+
+### 🍺 Gorgées de pénalité (`toz`)
+- Affichage du nombre de gorgées sur chaque carte
+- Visible dans le journal de partie également
+
+### 🖥️ UI
+- NSFW slider avec gradient de couleurs
+- Affichage du mode dans le lobby
+- `isSolo` et `nsfwLevel` transmis dans le safeState

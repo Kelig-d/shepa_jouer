@@ -98,11 +98,11 @@ function emitState(io, gameId, state) {
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
 
-  socket.on('createGame', async ({ playerName, playerAvatar, gameType, variantRules, nsfwLevel, isSolo }, callback) => {
+  socket.on('createGame', async ({ playerName, playerAvatar, gameType, variantRules, nsfwLevel, isSolo, soloPlayerNames }, callback) => {
     try {
       const playerId = socket.id;
       const engine = gameType === 'le-toz' ? leTozEngine : laTabusesEngine;
-      const state = await engine.createGame(playerId, playerName, playerAvatar, variantRules || [], nsfwLevel, isSolo);
+      const state = await engine.createGame(playerId, playerName, playerAvatar, variantRules || [], nsfwLevel, isSolo, soloPlayerNames || []);
       socket.join(state.id);
       socket.gameId = state.id;
       clearTimeout(disconnectTimers[state.id]);

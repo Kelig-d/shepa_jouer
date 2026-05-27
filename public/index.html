@@ -131,6 +131,11 @@
               </div>
               <input type="hidden" id="mode-input" value="solo">
             </div>
+            <div class="form-group" id="solo-players-group">
+              <label>Joueurs présents</label>
+              <textarea id="solo-players" class="solo-players-input" rows="3" placeholder="Alice, Bob, Charlie...&#10;Un nom par ligne ou séparés par des virgules"></textarea>
+              <div class="solo-players-hint">Ces noms apparaîtront sur les cartes pour les défis {Joueur}</div>
+            </div>
           </div>
 
           <button class="btn btn-primary btn-large" id="btn-create-game">
@@ -268,10 +273,11 @@
             <div class="toz-card-inner">
               <div class="toz-card-header">
                 <span id="toz-type" class="toz-type"></span>
-                <span id="toz-player" class="toz-player"></span>
+                <span id="toz-tier-badge" class="toz-tier-badge hidden"></span>
               </div>
               <div class="toz-card-content">
                 <p id="toz-text" class="toz-text">Prêt à piocher ?</p>
+                <div id="toz-player" class="toz-player toz-player-big hidden"></div>
               </div>
               <div class="toz-card-footer">
                 <button class="btn btn-primary" id="btn-toz-draw">🃏 Piocher une carte</button>

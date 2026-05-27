@@ -26,7 +26,7 @@ class LeTozGame {
     this.redis = redis;
   }
 
-  async createGame(hostId, hostName, hostAvatar, variantRules, nsfwLevel = 0, isSolo = false) {
+  async createGame(hostId, hostName, hostAvatar, variantRules, nsfwLevel = 0, isSolo = false, soloPlayerNames = []) {
     let state, key;
     for (let attempt = 0; attempt < 10; attempt++) {
       state = {
@@ -47,6 +47,13 @@ class LeTozGame {
       key = redisKey(ROOM_PREFIX, state.id);
       const exists = await this.redis.exists(key);
       if (!exists) break;
+    }
+    if (isSolo && soloPlayerNames.length > 0) {
+      for (const name of soloPlayerNames) {
+        const id = 'solo-' + generateCode();
+        state.players.push({ id, name: name.trim(), avatar: '🃏', penaltyPoints: 0 });
+        state.turnOrder.push(id);
+      }
     }
     await this.redis.set(key, JSON.stringify(state), 'EX', GAME_TTL);
     return state;
@@ -135,7 +142,7 @@ class LeTozGame {
       }
     }
 
-    state.currentCard = { type: isVerite ? 'verite' : 'action', text, toz };
+    state.currentCard = { type: isVerite ? 'verite' : 'action', text, toz, tier: card.tier };
     state.logs.push({ type: 'cardDrawn', playerId: state.currentPlayerId, cardType: state.currentCard.type, toz });
 
     if (!state.isSolo) {

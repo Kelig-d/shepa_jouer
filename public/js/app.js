@@ -67,6 +67,10 @@ document.querySelectorAll('.mode-option').forEach((opt) => {
     document.querySelectorAll('.mode-option').forEach((o) => o.classList.remove('active'));
     opt.classList.add('active');
     $('mode-input').value = opt.dataset.mode;
+    const soloGroup = $('solo-players-group');
+    if (soloGroup) {
+      soloGroup.classList.toggle('hidden', opt.dataset.mode !== 'solo');
+    }
   });
 });
 
@@ -177,11 +181,16 @@ $('btn-create-game').addEventListener('click', async () => {
   if ($('variant-double') && $('variant-double').checked) variantRules.push('double');
   const nsfwLevel = parseInt($('nsfw-level-input')?.value || '0');
   const isSolo = $('mode-input')?.value === 'solo';
+  let soloPlayerNames = [];
+  if (isSolo) {
+    const raw = ($('solo-players')?.value || '').trim();
+    soloPlayerNames = raw.split(/[\n,]+/).map(n => n.trim()).filter(n => n.length > 0);
+  }
 
   myAvatar = playerAvatar;
 
   try {
-    const res = await emitWithCallback('createGame', { playerName, playerAvatar, gameType, variantRules, nsfwLevel, isSolo });
+    const res = await emitWithCallback('createGame', { playerName, playerAvatar, gameType, variantRules, nsfwLevel, isSolo, soloPlayerNames });
     currentGameId = res.gameId;
     myPlayerId = res.playerId;
     sessionStorage.setItem('shepa_playerName', playerName);
@@ -506,6 +515,9 @@ function renderLaTabuses(state) {
   }
 }
 
+const TIER_LABELS = ['Familial', 'Amis', 'Croustillant', 'Hot', 'Extrême'];
+const TIER_EMOJIS = ['🟢', '🟡', '🟠', '🔴', '🟣'];
+
 function renderLeToz(state) {
   const card = state.currentCard;
   const isHost = myPlayerId === state.hostId;
@@ -515,8 +527,24 @@ function renderLeToz(state) {
 
     $('toz-type').textContent = card.type === 'verite' ? 'Vérité' : 'Action';
     $('toz-type').className = 'toz-type ' + card.type;
-    $('toz-player').textContent = player ? (player.avatar || '') + ' ' + player.name : '';
+
     $('toz-text').textContent = card.text;
+
+    if (player) {
+      $('toz-player').textContent = (player.avatar || '🃏') + ' ' + player.name;
+      $('toz-player').classList.remove('hidden');
+    } else {
+      $('toz-player').classList.add('hidden');
+    }
+
+    if (card.tier !== undefined) {
+      const tier = card.tier;
+      $('toz-tier-badge').textContent = TIER_EMOJIS[tier] + ' ' + TIER_LABELS[tier];
+      $('toz-tier-badge').className = 'toz-tier-badge toz-tier-' + tier;
+      $('toz-tier-badge').classList.remove('hidden');
+    } else {
+      $('toz-tier-badge').classList.add('hidden');
+    }
 
     $('btn-toz-draw').classList.add('hidden');
     if (state.isSolo) {
@@ -534,7 +562,9 @@ function renderLeToz(state) {
   } else {
     $('toz-type').textContent = '';
     $('toz-type').className = 'toz-type';
+    $('toz-player').classList.add('hidden');
     $('toz-player').textContent = '';
+    $('toz-tier-badge').classList.add('hidden');
     $('toz-text').textContent = 'Prêt à piocher ?';
     $('toz-sips').classList.add('hidden');
 

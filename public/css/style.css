@@ -895,6 +895,43 @@ body {
 .mode-label { font-weight: 600; font-size: 0.9em; color: #fff; }
 .mode-desc { font-size: 0.7em; color: rgba(255,255,255,0.4); text-align: center; }
 
+/* SOLO PLAYERS INPUT */
+.solo-players-input {
+  width: 100%; padding: 10px 14px; border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px; font-size: 0.9em; background: rgba(255,255,255,0.04);
+  color: #fff; outline: none; resize: vertical; font-family: inherit;
+  transition: border-color 0.25s;
+}
+.solo-players-input:focus {
+  border-color: rgba(0, 240, 255, 0.4);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.08);
+  background: rgba(255,255,255,0.06);
+}
+.solo-players-input::placeholder { color: rgba(255,255,255,0.2); }
+.solo-players-hint {
+  font-size: 0.75em; color: rgba(255,255,255,0.25); margin-top: 4px;
+}
+
+/* BIGGER PLAYER NAME ON CARD */
+.toz-player-big {
+  text-align: center; font-size: 1.4em; font-weight: 700; color: #fff;
+  margin-top: 10px; padding: 6px 16px; display: inline-block;
+  background: rgba(255,255,255,0.06); border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+/* TIER BADGE ON CARD */
+.toz-tier-badge {
+  font-size: 0.75em; font-weight: 600; padding: 3px 12px;
+  border-radius: 20px; text-transform: uppercase; letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+.toz-tier-0 { background: rgba(40, 167, 69, 0.15); color: #28a745; border: 1px solid rgba(40, 167, 69, 0.3); }
+.toz-tier-1 { background: rgba(255, 193, 7, 0.15); color: #ffc107; border: 1px solid rgba(255, 193, 7, 0.3); }
+.toz-tier-2 { background: rgba(253, 126, 20, 0.15); color: #fd7e14; border: 1px solid rgba(253, 126, 20, 0.3); }
+.toz-tier-3 { background: rgba(220, 53, 69, 0.15); color: #ff6b6b; border: 1px solid rgba(220, 53, 69, 0.3); }
+.toz-tier-4 { background: rgba(111, 66, 193, 0.15); color: #b388ff; border: 1px solid rgba(111, 66, 193, 0.3); }
+
 /* TOZ SIPS */
 .toz-sips {
   text-align: center; padding: 6px 14px; font-size: 0.85em; font-weight: 600;
