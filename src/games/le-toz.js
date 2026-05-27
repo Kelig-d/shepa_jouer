@@ -17,49 +17,90 @@ function generateCode() {
 }
 
 const VERITE_CARDS = [
-  'Quelle est la partie du corps que tu regardes en premier chez {Joueur} ?',
-  'Si {Joueur} te faisait une déclaration, accepterais-tu ?',
-  'Quel joueur de la table a le plus de charme selon toi ?',
+  // Drôles / Ambiance
+  'Raconte ta dernière recherche Google un peu honteuse.',
+  'Quel est le pire cadeau que tu aies jamais reçu ?',
+  'Ton talent caché le plus inutile ? On veut une démo !',
+  'Quelle est la fake news la plus improbable à laquelle tu as presque cru ?',
+  'Quel est le truc le plus bizarre que tu aies dans ton sac en ce moment ?',
+  'Décris ton plat préféré comme si c\'était une œuvre d\'art.',
+  'Quelle est la pire tendance mode que tu aies suivie ?',
+  'Quel bruit te fait instantanément sourire ?',
+
+  // Entre amis
+  'Quelle est la première impression, honnête, que tu as eue de {Joueur} ?',
+  'Si notre groupe était une sitcom, quel serait ton rôle ?',
+  'Qui dans la table est le plus susceptible de devenir célèbre ? Pourquoi ?',
+  'Quelle est la chose la plus embarrassante que {Joueur} t\'ait vu faire ?',
+  'Quel est le pire conseil que tu aies donné à quelqu\'un ici ?',
+  'Si tu devais noter l\'hygiène de {Joueur} sur 10, quelle note ?',
+  'Quel secret de {Joueur} connais-tu que les autres ignorent ?',
+
+  // Croustillants / Perso
+  'Quelle est la chose la plus folle que tu aies faite sur un coup de tête ?',
+  'Le plus gros mensonge que tu aies raconté à tes parents ?',
   'Raconte ton rendez-vous le plus gênant — et ce qui a mal tourné.',
-  'Quel est le regard le plus séduisant de la table ?',
-  'Si tu devais te déshabiller devant quelqu\'un ici, qui choisirais-tu ?',
+  'As-tu déjà eu un crush sur quelqu\'un dans cette pièce ?',
+  'Quel est ton « guilty pleasure » ultime (musique, série, bouffe) ?',
+  'Si tu devais décrire ta vie sentimentale avec un titre de film, lequel ?',
+  'Quel est le pire date de ta vie ?',
+  'As-tu déjà regretté d\'avoir couché avec quelqu\'un ?',
+  'Quelle est la chose la plus embarrassante qu\'on t\'ait vue faire ?',
+  'Quel est le plus gros risque que tu aies pris pour l\'amour ?',
+
+  // Hot / Limite
+  'Quelle est la partie du corps que tu regardes en premier chez {Joueur} ?',
   'Qu\'est-ce qui te fait craquer chez une personne ? (3 choses)',
-  'Quel joueur ici a le plus de secrets selon toi ?',
-  'Raconte un fantasme que tu n\'as jamais partagé à personne.',
-  'Si tu devais échanger ton corps avec {Joueur} pour un jour, qu\'est-ce que tu ferais en premier ?',
-  'Quelle est la chose la plus coquine que tu aies faite en public ?',
-  'Qui ici pourrait te faire craquer facilement ? Pourquoi ?',
-  'Quel est le compliment le plus séduisant qu\'on t\'ait jamais fait ?',
-  'Si tu devais passer une soirée en tête-à-tête avec {Joueur}, où irais-tu ?',
-  'Quel joueur a le plus de "swag" selon toi ?',
-  'Décris ton look le plus "hot" que tu aies jamais porté.',
+  'Quel est le compliment le plus marquant qu\'on t\'ait jamais fait ?',
+  'Décris ton look le plus séduisant que tu aies jamais porté.',
   'Quelle est la chose la plus osée que tu aies faite pour séduire ?',
   'Quel défaut physique trouves-tu bizarrement attirant chez quelqu\'un ?',
-  'Si tu devais embrasser quelqu\'un ici le front, qui serait-ce ?',
-  'Qui ici a le plus de potentiel pour être un bon "date" ?',
+  'Si tu devais passer une soirée en tête-à-tête avec {Joueur}, où irais-tu ?',
 ];
 
 const ACTION_CARDS = [
-  'Susurre un mot coquin à l\'oreille de {Joueur}.',
+  // Drôles / Ambiance
+  'Fais la chenille tout seul autour du groupe.',
+  'Parle comme Yoda jusqu\'à ton prochain tour.',
+  'Imite le démarrage d\'un vieux modem 56k.',
+  'Fais une battle de regards avec {Joueur}. Le premier qui rit a perdu.',
+  'Récite l\'alphabet à l\'envers le plus vite possible.',
+  'Fais le moonwalk sur 3 mètres — ou une tentative honorable.',
+  'Mange un biscuit sans utiliser tes mains.',
+  'Fais le bruitage d\'un personnage de jeu vidéo connu.',
+  'Fais un câlin de 10 secondes à {Joueur} sans dire un mot.',
+  'Laisse {Joueur} te coiffer de manière ridicule. Photo obligatoire.',
+
+  // Entre amis
+  'Donne ton téléphone à {Joueur} qui peut envoyer un émoji au premier contact de ta liste.',
+  'Raconte une histoire en utilisant uniquement des titres de chansons.',
+  'Imite un membre du groupe, les autres devinent qui c\'est.',
+  'Fais un compliment très spécifique à chaque personne de la table.',
+  'Laisse {Joueur} fouiller ton historique YouTube ou TikTok pendant 30 secondes.',
+  'Échange un vêtement ou accessoire avec {Joueur} jusqu\'à la prochaine carte.',
+  'Mime un film et les autres doivent deviner.',
+  'Fais un discours d\'une minute sur un sujet improbable (le chat, les chaussettes...).',
+
+  // Croustillants
+  'Susurre un mot doux à l\'oreille de {Joueur}.',
   'Regarde {Joueur} dans les yeux pendant 10 secondes sans sourire.',
-  'Fais un compliment très sensuel à {Joueur} en le regardant droit dans les yeux.',
-  'Danse langoureusement avec un balai ou un objet imaginaire pendant 15 secondes.',
+  'Chuchote ton plus gros secret à l\'oreille de {Joueur}.',
   'Fais une déclaration d\'amour passionnée à {Joueur} comme dans un film.',
   'Masse les épaules de {Joueur} pendant 15 secondes.',
-  'Chuchote à l\'oreille de {Joueur} ton plus gros secret inavouable.',
-  'Fais 5 pas en défilant comme sur un podium — version sexy.',
-  'Fais un câlin de 10 secondes à {Joueur} sans dire un mot.',
-  'Prends la main de {Joueur} et fais-lui un compliment les yeux dans les yeux.',
-  'Fais ton plus beau regard séducteur à {Joueur} sans cligner des yeux.',
-  'Raconte une histoire croustillante avec des bruits suggestifs et des gestes.',
-  'Décoiffe-toi de façon sexy façon clip de musique.',
   'Fais deviner un mot coquin à {Joueur} en le mimant seulement.',
   'Fais un slow avec {Joueur} sur une musique imaginaire pendant 15 secondes.',
+  'Prends la main de {Joueur} et fais-lui un compliment les yeux dans les yeux.',
   'Embrasse la joue de {Joueur} lentement.',
-  'Fais une proposition indécente à {Joueur} sur un ton théâtral.',
+  'Raconte une anecdote croustillante avec des bruits suggestifs et des gestes.',
+
+  // Hot / Osé
+  'Mime une scène de séduction avec {Joueur} devant tout le monde.',
   'Regarde {Joueur} de bas en haut et dis-lui ce qui te plaît chez lui/elle.',
-  'Mime une scène de séduction avec {Joueur} devant tout le monde pendant 20 secondes.',
-  'Fais deviner aux autres à quel endroit du corps tu aimerais être embrassé(e) en le mimant.',
+  'Danse langoureusement avec un objet imaginaire pendant 15 secondes.',
+  'Fais ton plus beau regard séducteur à {Joueur} sans cligner des yeux.',
+  'Fais une proposition indécente à {Joueur} sur un ton théâtral.',
+  'Décoiffe-toi de façon sexy façon clip de musique.',
+  'Fais un strip-tease inversé (remets un vêtement que tu enlèverais).',
 ];
 
 class LeTozGame {
