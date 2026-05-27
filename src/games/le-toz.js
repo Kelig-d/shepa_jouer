@@ -17,49 +17,49 @@ function generateCode() {
 }
 
 const VERITE_CARDS = [
-  'Quelle est la chose la plus embarrassante qui vous soit arrivée en public ?',
-  'Quel est le pire mensonge que vous ayez raconté à vos parents ?',
-  'Qui dans cette pièce aimeriez-vous embrasser ?',
-  'Quelle est la pire chose que vous ayez faite en cachette ?',
-  'Avez-vous déjà espionné quelqu\'un ? Racontez.',
-  'Quel est votre plus grand regret ?',
-  'Quelle est la chose la plus stupide que vous ayez achetée ?',
-  'Avez-vous déjà volé quelque chose ? Quoi ?',
-  'Qui est votre crush secret dans cette pièce ?',
-  'Quel est le pire rendez-vous de votre vie ?',
-  'Avez-vous déjà fait semblant d\'aimer un cadeau ? Lequel ?',
-  'Quelle est votre plus grande peur ?',
-  'Quel est le pire secret que vous cachiez à vos parents ?',
-  'Avez-vous déjà triché à un examen ? Comment ?',
-  'Qui est la personne la plus célèbre que vous aimeriez rencontrer ?',
-  'Quelle est la pire insulte que vous ayez reçue ?',
-  'Avez-vous déjà pleuré devant un film ? Lequel ?',
-  'Quel est votre pire défaut selon vos amis ?',
-  'Avez-vous déjà envoyé un message au mauvais destinataire ? Racontez.',
-  'Quelle est la chose la plus bizarre que vous mangiez ?',
+  'Quelle est la partie du corps que tu regardes en premier chez {Joueur} ?',
+  'Si {Joueur} te faisait une déclaration, accepterais-tu ?',
+  'Quel joueur de la table a le plus de charme selon toi ?',
+  'Raconte ton rendez-vous le plus gênant — et ce qui a mal tourné.',
+  'Quel est le regard le plus séduisant de la table ?',
+  'Si tu devais te déshabiller devant quelqu\'un ici, qui choisirais-tu ?',
+  'Qu\'est-ce qui te fait craquer chez une personne ? (3 choses)',
+  'Quel joueur ici a le plus de secrets selon toi ?',
+  'Raconte un fantasme que tu n\'as jamais partagé à personne.',
+  'Si tu devais échanger ton corps avec {Joueur} pour un jour, qu\'est-ce que tu ferais en premier ?',
+  'Quelle est la chose la plus coquine que tu aies faite en public ?',
+  'Qui ici pourrait te faire craquer facilement ? Pourquoi ?',
+  'Quel est le compliment le plus séduisant qu\'on t\'ait jamais fait ?',
+  'Si tu devais passer une soirée en tête-à-tête avec {Joueur}, où irais-tu ?',
+  'Quel joueur a le plus de "swag" selon toi ?',
+  'Décris ton look le plus "hot" que tu aies jamais porté.',
+  'Quelle est la chose la plus osée que tu aies faite pour séduire ?',
+  'Quel défaut physique trouves-tu bizarrement attirant chez quelqu\'un ?',
+  'Si tu devais embrasser quelqu\'un ici le front, qui serait-ce ?',
+  'Qui ici a le plus de potentiel pour être un bon "date" ?',
 ];
 
 const ACTION_CARDS = [
-  'Faites 10 pompes devant tout le monde.',
-  'Imitez un animal pendant 30 secondes.',
-  'Chantez le refrain de votre chanson préférée à tue-tête.',
-  'Appelez un contact au hasard et dites-lui "Je t\'aime".',
-  'Faites le tour de la pièce en marchant comme un crabe.',
-  'Mimez un film et les autres doivent deviner.',
-  'Faites un compliment sincère à chaque personne de la pièce.',
-  'Dansez pendant 20 secondes sur une musique imaginaire.',
-  'Parlez avec un accent différent pendant 3 tours de jeu.',
-  'Fermez les yeux et laissez les autres vous guider pour faire 5 pas.',
-  'Faites une déclaration d\'amour dramatique à un objet de la pièce.',
-  'Racontez une blague. Si personne ne rit, faites 5 squats.',
-  'Prenez une photo de vous avec la plus drôle des expressions.',
-  'Échangez une chaussure avec la personne à votre gauche pour le prochain tour.',
-  'Faites le bruit d\'un moteur de voiture pendant 10 secondes.',
-  'Dessinez quelque chose les yeux fermés, les autres devinent.',
-  'Faites un discours de 15 secondes sur un sujet improbable (ex: les chaussettes).',
-  'Imitez un membre du groupe, les autres devinent qui c\'est.',
-  'Tenez une pose de super-héros pendant 15 secondes sans bouger.',
-  'Racontez le film le plus récent que vous ayez vu en 10 secondes chrono.',
+  'Susurre un mot coquin à l\'oreille de {Joueur}.',
+  'Regarde {Joueur} dans les yeux pendant 10 secondes sans sourire.',
+  'Fais un compliment très sensuel à {Joueur} en le regardant droit dans les yeux.',
+  'Danse langoureusement avec un balai ou un objet imaginaire pendant 15 secondes.',
+  'Fais une déclaration d\'amour passionnée à {Joueur} comme dans un film.',
+  'Masse les épaules de {Joueur} pendant 15 secondes.',
+  'Chuchote à l\'oreille de {Joueur} ton plus gros secret inavouable.',
+  'Fais 5 pas en défilant comme sur un podium — version sexy.',
+  'Fais un câlin de 10 secondes à {Joueur} sans dire un mot.',
+  'Prends la main de {Joueur} et fais-lui un compliment les yeux dans les yeux.',
+  'Fais ton plus beau regard séducteur à {Joueur} sans cligner des yeux.',
+  'Raconte une histoire croustillante avec des bruits suggestifs et des gestes.',
+  'Décoiffe-toi de façon sexy façon clip de musique.',
+  'Fais deviner un mot coquin à {Joueur} en le mimant seulement.',
+  'Fais un slow avec {Joueur} sur une musique imaginaire pendant 15 secondes.',
+  'Embrasse la joue de {Joueur} lentement.',
+  'Fais une proposition indécente à {Joueur} sur un ton théâtral.',
+  'Regarde {Joueur} de bas en haut et dis-lui ce qui te plaît chez lui/elle.',
+  'Mime une scène de séduction avec {Joueur} devant tout le monde pendant 20 secondes.',
+  'Fais deviner aux autres à quel endroit du corps tu aimerais être embrassé(e) en le mimant.',
 ];
 
 class LeTozGame {
@@ -154,7 +154,17 @@ class LeTozGame {
 
     const isVerite = Math.random() < 0.5;
     const deck = isVerite ? VERITE_CARDS : ACTION_CARDS;
-    const text = deck[Math.floor(Math.random() * deck.length)];
+    let text = deck[Math.floor(Math.random() * deck.length)];
+
+    if (text.includes('{Joueur}')) {
+      const others = activePlayers.filter((p) => p.id !== player.id);
+      if (others.length > 0) {
+        const target = others[Math.floor(Math.random() * others.length)];
+        text = text.replace(/\{Joueur\}/g, target.name);
+      } else {
+        text = text.replace(/\{Joueur\}/g, 'toi-même');
+      }
+    }
 
     state.currentPlayerId = player.id;
     state.currentCard = { type: isVerite ? 'verite' : 'action', text };
