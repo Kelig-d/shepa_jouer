@@ -26,9 +26,16 @@ const leTozEngine = new LeTozGame(redis);
 
 let pendingQuestions = {};
 
-function getEngine(gameId, gameType) {
+function getEngine(gameType) {
   if (gameType === 'le-toz') return leTozEngine;
   return laTabusesEngine;
+}
+
+async function getEngineByGameId(gameId) {
+  let state = await laTabusesEngine.getGame(gameId);
+  if (!state) throw new Error('Partie introuvable');
+  const engine = state.gameType === 'le-toz' ? leTozEngine : laTabusesEngine;
+  return { engine, state };
 }
 
 function getRandomQuestion(gameId) {
@@ -44,13 +51,22 @@ function getRandomQuestion(gameId) {
   return q;
 }
 
-function emitGameUpdate(io, gameId) {
-  laTabusesEngine.getGame(gameId).then((state) => {
-    if (state) return emitState(io, gameId, state);
-    return leTozEngine.getGame(gameId);
-  }).then((state) => {
-    if (state) emitState(io, gameId, state);
-  });
+const disconnectTimers = {};
+
+function scheduleLobbyCleanup(gameId) {
+  if (disconnectTimers[gameId]) clearTimeout(disconnectTimers[gameId]);
+  disconnectTimers[gameId] = setTimeout(async () => {
+    try {
+      const room = io.sockets.adapter.rooms.get(gameId);
+      if (room && room.size > 0) { delete disconnectTimers[gameId]; return; }
+      const state = await laTabusesEngine.getGame(gameId);
+      if (state && state.status === 'waiting') {
+        await redis.del('game:' + gameId);
+        console.log(`Lobby ${gameId} supprimé (inactivité 30s)`);
+      }
+    } catch (e) { /* déjà supprimé */ }
+    delete disconnectTimers[gameId];
+  }, 30000);
 }
 
 function emitState(io, gameId, state) {
@@ -88,6 +104,8 @@ io.on('connection', (socket) => {
       const engine = gameType === 'le-toz' ? leTozEngine : laTabusesEngine;
       const state = await engine.createGame(playerId, playerName, playerAvatar, variantRules || [], nsfwLevel, isSolo);
       socket.join(state.id);
+      socket.gameId = state.id;
+      clearTimeout(disconnectTimers[state.id]);
       emitState(io, state.id, state);
       if (callback) callback({ success: true, gameId: state.id, playerId });
     } catch (err) {
@@ -97,21 +115,13 @@ io.on('connection', (socket) => {
 
   socket.on('joinGame', async ({ gameId, playerName, playerAvatar }, callback) => {
     try {
-      const playerId = socket.id;
-      let state = await laTabusesEngine.getGame(gameId);
-      if (state) {
-        state = await laTabusesEngine.joinGame(gameId, playerId, playerName, playerAvatar);
-      } else {
-        state = await leTozEngine.getGame(gameId);
-        if (state) {
-          state = await leTozEngine.joinGame(gameId, playerId, playerName, playerAvatar);
-        } else {
-          throw new Error('Partie introuvable');
-        }
-      }
+      const { engine, state } = await getEngineByGameId(gameId);
+      const newState = await engine.joinGame(gameId, socket.id, playerName, playerAvatar);
       socket.join(gameId);
-      emitState(io, gameId, state);
-      if (callback) callback({ success: true, gameId, playerId });
+      socket.gameId = gameId;
+      clearTimeout(disconnectTimers[gameId]);
+      emitState(io, gameId, newState);
+      if (callback) callback({ success: true, gameId, playerId: socket.id });
     } catch (err) {
       if (callback) callback({ success: false, error: err.message });
     }
@@ -119,10 +129,7 @@ io.on('connection', (socket) => {
 
   socket.on('updateAvatar', async ({ gameId, avatar }, callback) => {
     try {
-      let state = await laTabusesEngine.getGame(gameId);
-      const engine = state ? laTabusesEngine : leTozEngine;
-      if (!state) state = await leTozEngine.getGame(gameId);
-      if (!state) throw new Error('Partie introuvable');
+      const { engine, state } = await getEngineByGameId(gameId);
       const player = state.players.find((p) => p.id === socket.id);
       if (!player) throw new Error('Joueur introuvable');
       player.avatar = avatar;
@@ -136,22 +143,16 @@ io.on('connection', (socket) => {
 
   socket.on('startGame', async ({ gameId }, callback) => {
     try {
-      let state = await laTabusesEngine.getGame(gameId);
-      if (state) {
-        const question = getRandomQuestion(gameId);
-        state = await laTabusesEngine.startGame(gameId, question);
-        emitState(io, gameId, state);
-        if (callback) callback({ success: true, question: question.text });
+      const { engine, state } = await getEngineByGameId(gameId);
+      if (state.gameType === 'le-toz') {
+        const newState = await leTozEngine.startGame(gameId);
+        emitState(io, gameId, newState);
       } else {
-        state = await leTozEngine.getGame(gameId);
-        if (state) {
-          state = await leTozEngine.startGame(gameId);
-          emitState(io, gameId, state);
-          if (callback) callback({ success: true });
-        } else {
-          throw new Error('Partie introuvable');
-        }
+        const question = getRandomQuestion(gameId);
+        const newState = await laTabusesEngine.startGame(gameId, question);
+        emitState(io, gameId, newState);
       }
+      if (callback) callback({ success: true });
     } catch (err) {
       if (callback) callback({ success: false, error: err.message });
     }
@@ -220,14 +221,11 @@ io.on('connection', (socket) => {
 
   socket.on('leaveGame', async ({ gameId }, callback) => {
     try {
-      let state = await laTabusesEngine.getGame(gameId);
-      let engine = laTabusesEngine;
-      if (!state) { state = await leTozEngine.getGame(gameId); engine = leTozEngine; }
-      if (state) {
-        state = await engine.leaveGame(gameId, socket.id);
-        socket.leave(gameId);
-        if (state) emitState(io, gameId, state);
-      }
+      const { engine } = await getEngineByGameId(gameId);
+      const state = await engine.leaveGame(gameId, socket.id);
+      socket.leave(gameId);
+      if (state) emitState(io, gameId, state);
+      else scheduleLobbyCleanup(gameId);
       if (callback) callback({ success: true });
     } catch (err) {
       if (callback) callback({ success: false, error: err.message });
@@ -236,10 +234,7 @@ io.on('connection', (socket) => {
 
   socket.on('reconnectGame', async ({ gameId, playerName }, callback) => {
     try {
-      let state = await laTabusesEngine.getGame(gameId);
-      let engine = laTabusesEngine;
-      if (!state) { state = await leTozEngine.getGame(gameId); engine = leTozEngine; }
-      if (!state) throw new Error('Partie introuvable');
+      const { engine, state } = await getEngineByGameId(gameId);
       const player = state.players.find((p) => p.name === playerName);
       if (!player) throw new Error('Joueur introuvable');
       const oldId = player.id;
@@ -248,6 +243,8 @@ io.on('connection', (socket) => {
       if (idx !== -1) state.turnOrder[idx] = socket.id;
       player.id = socket.id;
       socket.join(gameId);
+      socket.gameId = gameId;
+      clearTimeout(disconnectTimers[gameId]);
       await engine.saveGame(state);
       emitState(io, gameId, state);
       if (callback) callback({ success: true, gameId, playerId: socket.id });
@@ -258,13 +255,9 @@ io.on('connection', (socket) => {
 
   socket.on('resetGame', async ({ gameId }, callback) => {
     try {
-      let state = await laTabusesEngine.getGame(gameId);
-      let engine = laTabusesEngine;
-      if (!state) { state = await leTozEngine.getGame(gameId); engine = leTozEngine; }
-      if (state) {
-        state = await engine.resetGame(gameId);
-        emitState(io, gameId, state);
-      }
+      const { engine } = await getEngineByGameId(gameId);
+      const state = await engine.resetGame(gameId);
+      emitState(io, gameId, state);
       if (callback) callback({ success: true });
     } catch (err) {
       if (callback) callback({ success: false, error: err.message });
@@ -273,8 +266,7 @@ io.on('connection', (socket) => {
 
   socket.on('getGameState', async ({ gameId }, callback) => {
     try {
-      let state = await laTabusesEngine.getGame(gameId);
-      if (!state) state = await leTozEngine.getGame(gameId);
+      const state = await laTabusesEngine.getGame(gameId);
       if (callback) callback({ success: true, state });
     } catch (err) {
       if (callback) callback({ success: false, error: err.message });
@@ -283,6 +275,9 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', async () => {
     console.log(`Client disconnected: ${socket.id}`);
+    if (socket.gameId) {
+      scheduleLobbyCleanup(socket.gameId);
+    }
   });
 });
 
