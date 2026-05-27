@@ -188,6 +188,7 @@ $('btn-create-game').addEventListener('click', async () => {
     sessionStorage.setItem('shepa_gameId', res.gameId);
     updateSessionBar();
     showLobby();
+    if (state) renderLobby(state);
   } catch (err) {
     showError(err.message);
   }
@@ -211,6 +212,7 @@ $('btn-join-game').addEventListener('click', async () => {
     sessionStorage.setItem('shepa_gameId', gameId);
     updateSessionBar();
     showLobby();
+    if (state) renderLobby(state);
   } catch (err) {
     showError(err.message);
   }
