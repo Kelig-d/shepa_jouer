@@ -163,9 +163,11 @@ body {
 }
 .stage-light {
   position: absolute; top: -60px; width: 200px; height: 120vh;
-  background: linear-gradient(180deg, rgba(255,255,255,0.06), transparent);
+  background: linear-gradient(180deg, rgba(255,255,255,0.08), transparent);
   transform-origin: top center;
   opacity: 0;
+  clip-path: polygon(30% 0%, 70% 0%, 100% 100%, 0% 100%);
+  filter: blur(40px);
 }
 .light-1 { left: 15%; animation: sweepLight 6s ease-in-out infinite; animation-delay: 0s; }
 .light-2 { left: 50%; animation: sweepLight 8s ease-in-out infinite; animation-delay: 2s; }
@@ -270,6 +272,90 @@ body {
   background: rgba(0, 240, 255, 0.12);
   box-shadow: 0 0 12px rgba(0, 240, 255, 0.2);
   transform: scale(1.1);
+}
+
+/* GAME TYPE CARDS */
+.game-type-cards { display: flex; flex-direction: column; gap: 8px; }
+.game-type-card {
+  cursor: pointer; border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.02); overflow: hidden;
+  transition: all 0.3s;
+}
+.game-type-card:hover { background: rgba(255,255,255,0.04); }
+.game-type-card.active {
+  border-color: rgba(0, 240, 255, 0.3);
+  background: rgba(0, 240, 255, 0.05);
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.08);
+}
+.game-type-card-inner {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+}
+.game-type-icon { font-size: 1.8em; flex-shrink: 0; }
+.game-type-body { flex: 1; }
+.game-type-name { font-weight: 600; font-size: 0.95em; color: #fff; }
+.game-type-desc { font-size: 0.78em; color: rgba(255,255,255,0.35); margin-top: 2px; }
+.game-type-check {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: transparent; border: 2px solid rgba(255,255,255,0.1);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8em; color: transparent; transition: all 0.3s; flex-shrink: 0;
+}
+.game-type-card.active .game-type-check {
+  background: rgba(0, 240, 255, 0.15);
+  border-color: #00f0ff;
+  color: #00f0ff;
+  box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
+}
+
+.game-options { margin-top: 12px; animation: slideDown 0.3s ease-out; }
+.game-options-info {
+  font-size: 0.85em; color: rgba(255,255,255,0.35);
+  padding: 10px 14px; background: rgba(255,255,255,0.02);
+  border-radius: 8px; border: 1px solid rgba(255,255,255,0.04);
+}
+
+/* TOZ CARD */
+.toz-card { margin: 0 0 16px; perspective: 1000px; }
+.toz-card-inner {
+  position: relative;
+  background: linear-gradient(145deg, rgba(30, 12, 50, 0.9), rgba(18, 18, 40, 0.9));
+  border: 1px solid rgba(255, 0, 228, 0.2);
+  border-radius: 16px; padding: 0; overflow: hidden;
+  box-shadow: 0 0 30px rgba(255, 0, 228, 0.05), inset 0 1px 0 rgba(255, 0, 228, 0.08);
+  animation: cardDraw 0.5s ease-out;
+}
+.toz-card-inner::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background:
+    linear-gradient(135deg, rgba(255, 0, 228, 0.03) 0%, transparent 50%),
+    linear-gradient(225deg, rgba(255, 200, 0, 0.03) 0%, transparent 50%);
+  pointer-events: none;
+}
+.toz-card-header {
+  position: relative; display: flex; justify-content: space-between;
+  align-items: center; padding: 16px 22px 8px; z-index: 1;
+}
+.toz-type {
+  font-size: 0.85em; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; padding: 4px 14px; border-radius: 20px;
+}
+.toz-type.verite { background: rgba(0, 200, 255, 0.12); color: #00c8ff; border: 1px solid rgba(0, 200, 255, 0.2); }
+.toz-type.action { background: rgba(255, 100, 0, 0.12); color: #ff6400; border: 1px solid rgba(255, 100, 0, 0.2); }
+.toz-player { font-size: 0.8em; color: rgba(255,255,255,0.4); }
+.toz-card-content {
+  position: relative; padding: 20px 22px 28px; z-index: 1; text-align: center;
+  min-height: 120px; display: flex; align-items: center; justify-content: center;
+}
+.toz-text {
+  font-size: 1.3em; color: #fff; font-weight: 600;
+  line-height: 1.5; text-shadow: 0 0 20px rgba(255, 0, 228, 0.05);
+}
+.toz-card-footer {
+  position: relative; display: flex; gap: 10px; justify-content: center;
+  padding: 14px 22px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.15); z-index: 1;
 }
 
 /* VARIANT CARDS */
@@ -735,6 +821,8 @@ body {
 }
 .end-result h2 { font-size: 1.3em; margin-bottom: 4px; }
 .end-result p { color: rgba(255,255,255,0.5); font-size: 0.9em; }
+.end-answer { margin: 12px 0; padding: 10px 20px; display: inline-block; background: rgba(0,240,255,0.06); border: 1px solid rgba(0,240,255,0.15); border-radius: 10px; font-size: 1.1em; color: rgba(255,255,255,0.7); }
+.end-answer strong { color: #00f0ff; font-size: 1.2em; }
 .end-scores {
   display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px;
 }

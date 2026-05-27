@@ -7,6 +7,7 @@ require('dotenv').config();
 
 const { getRedis } = require('./src/redis');
 const { LaTabusesGame } = require('./src/games/la-t-abuses');
+const { LeTozGame } = require('./src/games/le-toz');
 const questions = require('./questions/la-t-abuses.json');
 
 const app = express();
@@ -20,9 +21,15 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 const redis = getRedis();
-const gameEngine = new LaTabusesGame(redis);
+const laTabusesEngine = new LaTabusesGame(redis);
+const leTozEngine = new LeTozGame(redis);
 
 let pendingQuestions = {};
+
+function getEngine(gameId, gameType) {
+  if (gameType === 'le-toz') return leTozEngine;
+  return laTabusesEngine;
+}
 
 function getRandomQuestion(gameId) {
   const used = pendingQuestions[gameId] || [];
@@ -38,39 +45,48 @@ function getRandomQuestion(gameId) {
 }
 
 function emitGameUpdate(io, gameId) {
-  gameEngine.getGame(gameId).then((state) => {
-    if (!state) return;
-    const safeState = {
-      id: state.id,
-      status: state.status,
-      players: state.players,
-      turnOrder: state.turnOrder,
-      currentTurnIndex: state.currentTurnIndex,
-      currentQuestion: state.currentQuestion
-        ? { id: state.currentQuestion.id, text: state.currentQuestion.text, category: state.currentQuestion.category, difficulty: state.currentQuestion.difficulty }
-        : null,
-      currentGuess: state.currentGuess,
-      lastGuessValue: state.lastGuessValue,
-      lastGuesserId: state.lastGuesserId,
-      variantRules: state.variantRules,
-      penaltyThreshold: state.penaltyThreshold,
-      hostId: state.hostId,
-      logs: state.logs.slice(-50),
-    };
-    io.to(gameId).emit('gameUpdate', safeState);
+  laTabusesEngine.getGame(gameId).then((state) => {
+    if (state) return emitState(io, gameId, state);
+    return leTozEngine.getGame(gameId);
+  }).then((state) => {
+    if (state) emitState(io, gameId, state);
   });
+}
+
+function emitState(io, gameId, state) {
+  const safeState = {
+    id: state.id,
+    status: state.status,
+    gameType: state.gameType || 'la-t-abuses',
+    players: state.players,
+    turnOrder: state.turnOrder,
+    currentTurnIndex: state.currentTurnIndex,
+    currentQuestion: state.currentQuestion
+      ? { id: state.currentQuestion.id, text: state.currentQuestion.text, category: state.currentQuestion.category, difficulty: state.currentQuestion.difficulty, answer: state.currentQuestion.answer }
+      : null,
+    currentCard: state.currentCard || null,
+    currentPlayerId: state.currentPlayerId || null,
+    currentGuess: state.currentGuess,
+    lastGuessValue: state.lastGuessValue,
+    lastGuesserId: state.lastGuesserId,
+    variantRules: state.variantRules || [],
+    penaltyThreshold: state.penaltyThreshold,
+    hostId: state.hostId,
+    logs: state.logs.slice(-50),
+  };
+  io.to(gameId).emit('gameUpdate', safeState);
 }
 
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
 
-  socket.on('createGame', async ({ playerName, playerAvatar, variantRules }, callback) => {
+  socket.on('createGame', async ({ playerName, playerAvatar, gameType, variantRules }, callback) => {
     try {
       const playerId = socket.id;
-      const state = await gameEngine.createGame(playerId, playerName, playerAvatar, variantRules || []);
+      const engine = gameType === 'le-toz' ? leTozEngine : laTabusesEngine;
+      const state = await engine.createGame(playerId, playerName, playerAvatar, variantRules || []);
       socket.join(state.id);
-      socket.emit('gameCreated', { gameId: state.id, playerId });
-      emitGameUpdate(io, state.id);
+      emitState(io, state.id, state);
       if (callback) callback({ success: true, gameId: state.id, playerId });
     } catch (err) {
       if (callback) callback({ success: false, error: err.message });
@@ -80,9 +96,19 @@ io.on('connection', (socket) => {
   socket.on('joinGame', async ({ gameId, playerName, playerAvatar }, callback) => {
     try {
       const playerId = socket.id;
-      const state = await gameEngine.joinGame(gameId, playerId, playerName, playerAvatar);
+      let state = await laTabusesEngine.getGame(gameId);
+      if (state) {
+        state = await laTabusesEngine.joinGame(gameId, playerId, playerName, playerAvatar);
+      } else {
+        state = await leTozEngine.getGame(gameId);
+        if (state) {
+          state = await leTozEngine.joinGame(gameId, playerId, playerName, playerAvatar);
+        } else {
+          throw new Error('Partie introuvable');
+        }
+      }
       socket.join(gameId);
-      emitGameUpdate(io, gameId);
+      emitState(io, gameId, state);
       if (callback) callback({ success: true, gameId, playerId });
     } catch (err) {
       if (callback) callback({ success: false, error: err.message });
@@ -91,13 +117,15 @@ io.on('connection', (socket) => {
 
   socket.on('updateAvatar', async ({ gameId, avatar }, callback) => {
     try {
-      const state = await gameEngine.getGame(gameId);
+      let state = await laTabusesEngine.getGame(gameId);
+      const engine = state ? laTabusesEngine : leTozEngine;
+      if (!state) state = await leTozEngine.getGame(gameId);
       if (!state) throw new Error('Partie introuvable');
       const player = state.players.find((p) => p.id === socket.id);
       if (!player) throw new Error('Joueur introuvable');
       player.avatar = avatar;
-      await gameEngine.saveGame(state);
-      emitGameUpdate(io, gameId);
+      await engine.saveGame(state);
+      emitState(io, gameId, state);
       if (callback) callback({ success: true });
     } catch (err) {
       if (callback) callback({ success: false, error: err.message });
@@ -106,10 +134,22 @@ io.on('connection', (socket) => {
 
   socket.on('startGame', async ({ gameId }, callback) => {
     try {
-      const question = getRandomQuestion(gameId);
-      const state = await gameEngine.startGame(gameId, question);
-      emitGameUpdate(io, gameId);
-      if (callback) callback({ success: true, question: question.text });
+      let state = await laTabusesEngine.getGame(gameId);
+      if (state) {
+        const question = getRandomQuestion(gameId);
+        state = await laTabusesEngine.startGame(gameId, question);
+        emitState(io, gameId, state);
+        if (callback) callback({ success: true, question: question.text });
+      } else {
+        state = await leTozEngine.getGame(gameId);
+        if (state) {
+          state = await leTozEngine.startGame(gameId);
+          emitState(io, gameId, state);
+          if (callback) callback({ success: true });
+        } else {
+          throw new Error('Partie introuvable');
+        }
+      }
     } catch (err) {
       if (callback) callback({ success: false, error: err.message });
     }
@@ -117,14 +157,14 @@ io.on('connection', (socket) => {
 
   socket.on('submitGuess', async ({ gameId, guessValue }, callback) => {
     try {
-      const result = await gameEngine.submitGuess(gameId, socket.id, guessValue);
-      emitGameUpdate(io, gameId);
+      const result = await laTabusesEngine.submitGuess(gameId, socket.id, guessValue);
+      emitState(io, gameId, result.state);
       if (result.state.status === 'ended') {
         io.to(gameId).emit('gameEnded', { reason: result.state.logs[result.state.logs.length - 1] });
       } else if (result.state.status === 'playing' && !result.state.currentQuestion) {
         const question = getRandomQuestion(gameId);
-        await gameEngine.setQuestion(gameId, question);
-        emitGameUpdate(io, gameId);
+        await laTabusesEngine.setQuestion(gameId, question);
+        emitState(io, gameId);
       }
       if (callback) callback({ success: true, ...result });
     } catch (err) {
@@ -134,14 +174,14 @@ io.on('connection', (socket) => {
 
   socket.on('challenge', async ({ gameId }, callback) => {
     try {
-      const result = await gameEngine.challengeGuess(gameId, socket.id);
-      emitGameUpdate(io, gameId);
+      const result = await laTabusesEngine.challengeGuess(gameId, socket.id);
+      emitState(io, gameId, result.state);
       if (result.state.status === 'ended') {
         io.to(gameId).emit('gameEnded', { reason: result.state.logs[result.state.logs.length - 1] });
       } else if (result.state.status === 'playing' && !result.state.currentQuestion) {
         const question = getRandomQuestion(gameId);
-        await gameEngine.setQuestion(gameId, question);
-        emitGameUpdate(io, gameId);
+        await laTabusesEngine.setQuestion(gameId, question);
+        emitState(io, gameId);
       }
       if (callback) callback({ success: true, ...result });
     } catch (err) {
@@ -151,14 +191,14 @@ io.on('connection', (socket) => {
 
   socket.on('doubleDown', async ({ gameId }, callback) => {
     try {
-      const result = await gameEngine.doubleDown(gameId, socket.id);
-      emitGameUpdate(io, gameId);
+      const result = await laTabusesEngine.doubleDown(gameId, socket.id);
+      emitState(io, gameId, result.state);
       if (result.state.status === 'ended') {
         io.to(gameId).emit('gameEnded', { reason: result.state.logs[result.state.logs.length - 1] });
       } else if (result.state.status === 'playing' && !result.state.currentQuestion) {
         const question = getRandomQuestion(gameId);
-        await gameEngine.setQuestion(gameId, question);
-        emitGameUpdate(io, gameId);
+        await laTabusesEngine.setQuestion(gameId, question);
+        emitState(io, gameId);
       }
       if (callback) callback({ success: true, ...result });
     } catch (err) {
@@ -166,12 +206,25 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('drawCard', async ({ gameId }, callback) => {
+    try {
+      const state = await leTozEngine.drawCard(gameId);
+      emitState(io, gameId, state);
+      if (callback) callback({ success: true });
+    } catch (err) {
+      if (callback) callback({ success: false, error: err.message });
+    }
+  });
+
   socket.on('leaveGame', async ({ gameId }, callback) => {
     try {
-      const state = await gameEngine.leaveGame(gameId, socket.id);
-      socket.leave(gameId);
+      let state = await laTabusesEngine.getGame(gameId);
+      let engine = laTabusesEngine;
+      if (!state) { state = await leTozEngine.getGame(gameId); engine = leTozEngine; }
       if (state) {
-        emitGameUpdate(io, gameId);
+        state = await engine.leaveGame(gameId, socket.id);
+        socket.leave(gameId);
+        if (state) emitState(io, gameId, state);
       }
       if (callback) callback({ success: true });
     } catch (err) {
@@ -181,16 +234,33 @@ io.on('connection', (socket) => {
 
   socket.on('reconnectGame', async ({ gameId, playerName }, callback) => {
     try {
-      const state = await gameEngine.getGame(gameId);
+      let state = await laTabusesEngine.getGame(gameId);
+      let engine = laTabusesEngine;
+      if (!state) { state = await leTozEngine.getGame(gameId); engine = leTozEngine; }
       if (!state) throw new Error('Partie introuvable');
       const player = state.players.find((p) => p.name === playerName);
       if (!player) throw new Error('Joueur introuvable');
       if (state.hostId === player.id) state.hostId = socket.id;
       player.id = socket.id;
       socket.join(gameId);
-      await gameEngine.saveGame(state);
-      emitGameUpdate(io, gameId);
+      await engine.saveGame(state);
+      emitState(io, gameId, state);
       if (callback) callback({ success: true, gameId, playerId: socket.id });
+    } catch (err) {
+      if (callback) callback({ success: false, error: err.message });
+    }
+  });
+
+  socket.on('resetGame', async ({ gameId }, callback) => {
+    try {
+      let state = await laTabusesEngine.getGame(gameId);
+      let engine = laTabusesEngine;
+      if (!state) { state = await leTozEngine.getGame(gameId); engine = leTozEngine; }
+      if (state) {
+        state = await engine.resetGame(gameId);
+        emitState(io, gameId, state);
+      }
+      if (callback) callback({ success: true });
     } catch (err) {
       if (callback) callback({ success: false, error: err.message });
     }
@@ -198,7 +268,8 @@ io.on('connection', (socket) => {
 
   socket.on('getGameState', async ({ gameId }, callback) => {
     try {
-      const state = await gameEngine.getGame(gameId);
+      let state = await laTabusesEngine.getGame(gameId);
+      if (!state) state = await leTozEngine.getGame(gameId);
       if (callback) callback({ success: true, state });
     } catch (err) {
       if (callback) callback({ success: false, error: err.message });
@@ -207,7 +278,6 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', async () => {
     console.log(`Client disconnected: ${socket.id}`);
-    // Player can reconnect via reconnectGame — don't remove them
   });
 });
 
