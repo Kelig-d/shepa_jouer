@@ -8,6 +8,7 @@ require('dotenv').config();
 const { getRedis } = require('./src/redis');
 const { LaTabusesGame } = require('./src/games/la-t-abuses');
 const { LeTozGame } = require('./src/games/le-toz');
+const { MotCroiseGame } = require('./src/games/mot-croise');
 const questions = require('./questions/la-t-abuses.json');
 
 const app = express();
@@ -23,18 +24,20 @@ app.use(express.static(path.join(__dirname, 'public')));
 const redis = getRedis();
 const laTabusesEngine = new LaTabusesGame(redis);
 const leTozEngine = new LeTozGame(redis);
+const motCroiseEngine = new MotCroiseGame(redis);
 
 let pendingQuestions = {};
 
 function getEngine(gameType) {
   if (gameType === 'le-toz') return leTozEngine;
+  if (gameType === 'mot-croise') return motCroiseEngine;
   return laTabusesEngine;
 }
 
 async function getEngineByGameId(gameId) {
   let state = await laTabusesEngine.getGame(gameId);
   if (!state) throw new Error('Partie introuvable');
-  const engine = state.gameType === 'le-toz' ? leTozEngine : laTabusesEngine;
+  const engine = state.gameType === 'le-toz' ? leTozEngine : state.gameType === 'mot-croise' ? motCroiseEngine : laTabusesEngine;
   return { engine, state };
 }
 
@@ -74,7 +77,29 @@ function emitState(io, gameId, state) {
     id: state.id,
     status: state.status,
     gameType: state.gameType || 'la-t-abuses',
-    players: state.players,
+    players: state.gameType === 'mot-croise'
+      ? state.players.map(p => ({
+          id: p.id, name: p.name, avatar: p.avatar, score: p.score,
+          completedWords: p.completedWords, secretGuessed: p.secretGuessed,
+          finishTime: p.finishTime,
+          grid: p.grid ? {
+            grid: p.grid.grid.map(row => row.map(cell => ({
+              isBlocked: cell.isBlocked, number: cell.number,
+              isSecret: cell.isSecret,
+            }))),
+            words: p.grid.words.map(w => ({
+              number: w.number, row: w.row, col: w.col, isAcross: w.isAcross,
+              clue: w.clue, wordIndex: w.wordIndex, answerLength: w.answer.length,
+            })),
+            secretCells: p.grid.secretCells.map(c => ({
+              row: c.row, col: c.col, index: c.index, revealed: c.revealed,
+              letter: c.revealed ? c.letter : null,
+            })),
+            totalWords: p.grid.words.length,
+            secretWord: p.secretGuessed ? p.grid.secretWord : null,
+          } : null,
+        }))
+      : state.players,
     turnOrder: state.turnOrder,
     currentTurnIndex: state.currentTurnIndex,
     currentQuestion: state.currentQuestion
@@ -87,6 +112,8 @@ function emitState(io, gameId, state) {
     currentGuess: state.currentGuess,
     lastGuessValue: state.lastGuessValue,
     lastGuesserId: state.lastGuesserId,
+    timeLimit: state.timeLimit,
+    startTime: state.startTime,
     variantRules: state.variantRules || [],
     penaltyThreshold: state.penaltyThreshold,
     hostId: state.hostId,
@@ -101,7 +128,7 @@ io.on('connection', (socket) => {
   socket.on('createGame', async ({ playerName, playerAvatar, gameType, variantRules, nsfwLevel, isSolo, soloPlayerNames }, callback) => {
     try {
       const playerId = socket.id;
-      const engine = gameType === 'le-toz' ? leTozEngine : laTabusesEngine;
+      const engine = gameType === 'le-toz' ? leTozEngine : gameType === 'mot-croise' ? motCroiseEngine : laTabusesEngine;
       const state = await engine.createGame(playerId, playerName, playerAvatar, variantRules || [], nsfwLevel, isSolo, soloPlayerNames || []);
       socket.join(state.id);
       socket.gameId = state.id;
@@ -146,6 +173,9 @@ io.on('connection', (socket) => {
       const { engine, state } = await getEngineByGameId(gameId);
       if (state.gameType === 'le-toz') {
         const newState = await leTozEngine.startGame(gameId);
+        emitState(io, gameId, newState);
+      } else if (state.gameType === 'mot-croise') {
+        const newState = await motCroiseEngine.startGame(gameId);
         emitState(io, gameId, newState);
       } else {
         const question = getRandomQuestion(gameId);
@@ -204,6 +234,36 @@ io.on('connection', (socket) => {
         emitState(io, gameId);
       }
       if (callback) callback({ success: true, ...result });
+    } catch (err) {
+      if (callback) callback({ success: false, error: err.message });
+    }
+  });
+
+  socket.on('submitWord', async ({ gameId, wordIndex, answer }, callback) => {
+    try {
+      const result = await motCroiseEngine.submitWord(gameId, socket.id, wordIndex, answer);
+      emitState(io, gameId, result.state);
+      if (callback) callback({ success: true, correct: result.correct, player: result.player });
+    } catch (err) {
+      if (callback) callback({ success: false, error: err.message });
+    }
+  });
+
+  socket.on('guessSecretWord', async ({ gameId, guess }, callback) => {
+    try {
+      const result = await motCroiseEngine.guessSecretWord(gameId, socket.id, guess);
+      emitState(io, gameId, result.state);
+      if (callback) callback({ success: true, correct: result.correct, secretWord: result.secretWord });
+    } catch (err) {
+      if (callback) callback({ success: false, error: err.message });
+    }
+  });
+
+  socket.on('finishGame', async ({ gameId }, callback) => {
+    try {
+      const state = await motCroiseEngine.finishGame(gameId);
+      emitState(io, gameId, state);
+      if (callback) callback({ success: true });
     } catch (err) {
       if (callback) callback({ success: false, error: err.message });
     }

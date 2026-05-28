@@ -939,6 +939,152 @@ body {
   border-bottom-left-radius: 12px; border-bottom-right-radius: 12px;
 }
 
+/* MOT CROISE */
+.mc-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px; gap: 12px;
+}
+.mc-timer {
+  font-size: 1.4em; font-weight: 800; font-family: 'Courier New', monospace;
+  color: #00e676; text-shadow: 0 0 10px rgba(0,230,118,0.3);
+  transition: color 0.5s;
+}
+.mc-score {
+  font-size: 1.1em; font-weight: 700; color: #ffd700;
+  text-shadow: 0 0 10px rgba(255,215,0,0.2);
+}
+.mc-progress {
+  text-align: center; font-size: 0.85em; color: rgba(255,255,255,0.5);
+  margin-bottom: 12px;
+}
+
+.mc-grid-container {
+  overflow-x: auto; margin-bottom: 16px;
+}
+.mc-grid {
+  border-collapse: collapse; margin: 0 auto;
+  border: 2px solid rgba(255,255,255,0.2);
+}
+.mc-cell {
+  width: 30px; height: 30px; text-align: center; vertical-align: middle;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(255,255,255,0.05);
+  font-size: 0.85em; font-weight: 700; color: #fff; position: relative;
+  padding: 0;
+}
+.mc-cell.blocked {
+  background: #1a1a2e;
+  border-color: rgba(255,255,255,0.06);
+}
+.mc-cell.completed {
+  background: rgba(0, 230, 118, 0.12);
+  border-color: rgba(0, 230, 118, 0.2);
+}
+.mc-cell-num {
+  position: absolute; top: 1px; left: 2px;
+  font-size: 0.55em; font-weight: 600; color: rgba(255,255,255,0.4);
+  line-height: 1; pointer-events: none;
+}
+.mc-cell-letter {
+  font-size: 0.9em; font-weight: 700; color: #fff;
+  text-transform: uppercase;
+}
+
+.mc-definitions {
+  margin: 14px 0;
+}
+.mc-def {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 10px 14px; margin-bottom: 6px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px; transition: all 0.3s;
+}
+.mc-def.completed {
+  border-color: rgba(0, 230, 118, 0.2);
+  background: rgba(0, 230, 118, 0.04);
+}
+.mc-def-num {
+  font-size: 0.85em; font-weight: 700; color: #00f0ff;
+  min-width: 24px; text-align: center; padding-top: 2px;
+  flex-shrink: 0;
+}
+.mc-def-body { flex: 1; min-width: 0; }
+.mc-def-clue {
+  font-size: 0.9em; color: rgba(255,255,255,0.7); line-height: 1.4;
+  margin-bottom: 4px;
+}
+.mc-def-length { color: rgba(255,255,255,0.3); font-size: 0.85em; }
+.mc-def-input-row {
+  display: flex; gap: 6px;
+}
+.mc-def-input {
+  flex: 1; padding: 6px 10px; border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 6px; font-size: 0.9em; background: rgba(255,255,255,0.04);
+  color: #fff; outline: none; text-transform: uppercase;
+  transition: border-color 0.25s;
+}
+.mc-def-input:focus {
+  border-color: rgba(0, 240, 255, 0.4);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.08);
+}
+.mc-def-input::placeholder { color: rgba(255,255,255,0.2); font-size: 0.85em; }
+.mc-def-done {
+  font-size: 0.85em; color: #00e676; font-weight: 600;
+  padding: 4px 0;
+}
+
+.mc-secret-area {
+  margin: 14px 0; padding: 14px 16px;
+  background: rgba(255, 215, 0, 0.04);
+  border: 1px solid rgba(255, 215, 0, 0.15);
+  border-radius: 12px;
+}
+.mc-secret-label {
+  font-size: 0.9em; font-weight: 700; color: #ffd700;
+  margin-bottom: 8px;
+}
+.mc-secret-letters {
+  font-size: 0.85em; color: rgba(255,255,255,0.5);
+  margin-bottom: 10px; display: flex; align-items: center; gap: 4px;
+  flex-wrap: wrap;
+}
+.mc-secret-letter {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; font-size: 0.95em; font-weight: 700;
+  border: 1px solid rgba(255,215,0,0.3); border-radius: 4px;
+  background: rgba(255,215,0,0.06); color: #ffd700;
+  text-transform: uppercase;
+}
+.mc-secret-letter.hidden-letter {
+  background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.2);
+  border-color: rgba(255,255,255,0.08);
+}
+.mc-secret-letter.revealed {
+  background: rgba(255,215,0,0.12);
+  box-shadow: 0 0 8px rgba(255,215,0,0.2);
+}
+.mc-secret-found {
+  font-size: 1em; font-weight: 700; color: #ffd700;
+}
+.mc-secret-guess {
+  display: flex; gap: 8px;
+}
+.mc-secret-guess input {
+  flex: 1; padding: 8px 12px; border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px; font-size: 0.9em; background: rgba(255,255,255,0.04);
+  color: #fff; outline: none; text-transform: uppercase;
+}
+.mc-secret-guess input:focus {
+  border-color: rgba(255, 215, 0, 0.4);
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.08);
+}
+.mc-secret-guess input::placeholder { color: rgba(255,255,255,0.2); }
+
+.mc-actions {
+  display: flex; gap: 10px; margin-top: 14px;
+}
+
 /* RESPONSIVE */
 @media (max-width: 600px) {
   #app { padding: 12px; }
@@ -961,4 +1107,13 @@ body {
   .lobby-info-row { flex-direction: column; }
   .stage-header { flex-direction: column; align-items: flex-start; gap: 8px; }
   .log-fab { width: 220px; }
+  .mc-cell { width: 24px; height: 24px; font-size: 0.7em; }
+  .mc-cell-num { font-size: 0.45em; }
+  .mc-timer { font-size: 1.1em; }
+  .mc-score { font-size: 0.9em; }
+  .mc-def { padding: 8px 10px; }
+  .mc-def-clue { font-size: 0.8em; }
+  .mc-secret-guess { flex-direction: column; }
+  .mc-actions { flex-direction: column; }
+  .mc-grid-container { margin: 0 -8px 12px; }
 }
