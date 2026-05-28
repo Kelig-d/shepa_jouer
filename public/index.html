@@ -69,6 +69,16 @@
                   <div class="game-type-check">✓</div>
                 </div>
               </div>
+              <div class="game-type-card" data-game="mot-croise">
+                <div class="game-type-card-inner">
+                  <div class="game-type-icon">🧩</div>
+                  <div class="game-type-body">
+                    <div class="game-type-name">Mot Croisé Gaming</div>
+                    <div class="game-type-desc">Grilles de mots croisés sur le thème du jeu vidéo</div>
+                  </div>
+                  <div class="game-type-check">✓</div>
+                </div>
+              </div>
             </div>
             <input type="hidden" id="game-type-input" value="la-t-abuses">
           </div>
@@ -115,13 +125,21 @@
               </div>
               <input type="hidden" id="nsfw-level-input" value="0">
             </div>
+          </div>
+          <div id="mot-croise-options" class="game-options hidden">
+            <div class="form-group">
+              <label>Mot Croisé Gaming</label>
+              <div class="game-options-info">Remplissez la grille avec des mots liés au jeu vidéo. Trouvez le mot secret pour gagner des points bonus ! ⏱️</div>
+            </div>
+          </div>
+          <div id="mode-options" class="game-options hidden">
             <div class="form-group">
               <label>Mode de jeu</label>
               <div class="mode-toggle">
                 <div class="mode-option active" data-mode="solo">
                   <span class="mode-icon">🎮</span>
                   <span class="mode-label">Solo</span>
-                  <span class="mode-desc">1 téléphone – le host lit les cartes</span>
+                  <span class="mode-desc">1 téléphone – le host lit / joue</span>
                 </div>
                 <div class="mode-option" data-mode="multi">
                   <span class="mode-icon">👥</span>
@@ -130,6 +148,11 @@
                 </div>
               </div>
               <input type="hidden" id="mode-input" value="solo">
+            </div>
+            <div class="form-group" id="solo-players-group">
+              <label>Joueurs présents</label>
+              <textarea id="solo-players" class="solo-players-input" rows="3" placeholder="Alice, Bob, Charlie...&#10;Un nom par ligne ou séparés par des virgules"></textarea>
+              <div class="solo-players-hint">En solo, ajoutez les noms des joueurs autour de la table</div>
             </div>
           </div>
 
@@ -268,10 +291,11 @@
             <div class="toz-card-inner">
               <div class="toz-card-header">
                 <span id="toz-type" class="toz-type"></span>
-                <span id="toz-player" class="toz-player"></span>
+                <span id="toz-tier-badge" class="toz-tier-badge hidden"></span>
               </div>
               <div class="toz-card-content">
                 <p id="toz-text" class="toz-text">Prêt à piocher ?</p>
+                <div id="toz-player" class="toz-player toz-player-big hidden"></div>
               </div>
               <div class="toz-card-footer">
                 <button class="btn btn-primary" id="btn-toz-draw">🃏 Piocher une carte</button>
@@ -279,6 +303,32 @@
               </div>
               <div id="toz-sips" class="toz-sips hidden"></div>
             </div>
+          </div>
+        </div>
+
+        <!-- MOT CROISE CONTENT -->
+        <div id="mot-croise-content" class="hidden">
+          <div class="mc-header">
+            <div class="mc-timer" id="mc-timer">⏱ 5:00</div>
+            <div class="mc-score" id="mc-score">🏆 0 pts</div>
+          </div>
+          <div class="mc-grid-container" id="mc-grid-container">
+            <table class="mc-grid" id="mc-grid"></table>
+          </div>
+          <div class="mc-progress">
+            <span id="mc-progress-text">0 / 0 mots trouvés</span>
+          </div>
+          <div class="mc-definitions" id="mc-definitions"></div>
+          <div class="mc-secret-area hidden" id="mc-secret-area">
+            <div class="mc-secret-label">🔍 Mot Secret</div>
+            <div class="mc-secret-letters" id="mc-secret-letters"></div>
+            <div class="mc-secret-guess">
+              <input type="text" id="mc-secret-input" maxlength="20" placeholder="Devinez le mot secret...">
+              <button class="btn btn-warning btn-small" id="btn-guess-secret">🔍 Deviner</button>
+            </div>
+          </div>
+          <div class="mc-actions">
+            <button class="btn btn-primary" id="btn-finish-game">⏹ Terminer la partie</button>
           </div>
         </div>
 

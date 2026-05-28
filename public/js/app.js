@@ -4,6 +4,8 @@ let myPlayerId = null;
 let currentGameId = null;
 let lastLogCount = 0;
 let myAvatar = null;
+let localWordAnswers = {};
+let mcTimerInterval = null;
 
 const $ = (id) => document.getElementById(id);
 
@@ -67,6 +69,10 @@ document.querySelectorAll('.mode-option').forEach((opt) => {
     document.querySelectorAll('.mode-option').forEach((o) => o.classList.remove('active'));
     opt.classList.add('active');
     $('mode-input').value = opt.dataset.mode;
+    const soloGroup = $('solo-players-group');
+    if (soloGroup) {
+      soloGroup.classList.toggle('hidden', opt.dataset.mode !== 'solo');
+    }
   });
 });
 
@@ -80,6 +86,9 @@ document.querySelectorAll('.game-type-card').forEach((card) => {
     document.querySelectorAll('.game-options').forEach((o) => o.classList.add('hidden'));
     const opts = $(game + '-options');
     if (opts) opts.classList.remove('hidden');
+    if (game === 'le-toz' || game === 'mot-croise') {
+      $('mode-options').classList.remove('hidden');
+    }
   });
 });
 
@@ -177,17 +186,23 @@ $('btn-create-game').addEventListener('click', async () => {
   if ($('variant-double') && $('variant-double').checked) variantRules.push('double');
   const nsfwLevel = parseInt($('nsfw-level-input')?.value || '0');
   const isSolo = $('mode-input')?.value === 'solo';
+  let soloPlayerNames = [];
+  if (isSolo) {
+    const raw = ($('solo-players')?.value || '').trim();
+    soloPlayerNames = raw.split(/[\n,]+/).map(n => n.trim()).filter(n => n.length > 0);
+  }
 
   myAvatar = playerAvatar;
 
   try {
-    const res = await emitWithCallback('createGame', { playerName, playerAvatar, gameType, variantRules, nsfwLevel, isSolo });
+    const res = await emitWithCallback('createGame', { playerName, playerAvatar, gameType, variantRules, nsfwLevel, isSolo, soloPlayerNames });
     currentGameId = res.gameId;
     myPlayerId = res.playerId;
     sessionStorage.setItem('shepa_playerName', playerName);
     sessionStorage.setItem('shepa_gameId', res.gameId);
     updateSessionBar();
     showLobby();
+    if (state) renderLobby(state);
   } catch (err) {
     showError(err.message);
   }
@@ -211,6 +226,7 @@ $('btn-join-game').addEventListener('click', async () => {
     sessionStorage.setItem('shepa_gameId', gameId);
     updateSessionBar();
     showLobby();
+    if (state) renderLobby(state);
   } catch (err) {
     showError(err.message);
   }
@@ -277,6 +293,32 @@ $('btn-toz-draw').addEventListener('click', async () => {
 $('btn-toz-next').addEventListener('click', async () => {
   try {
     await emitWithCallback('drawCard', { gameId: currentGameId });
+  } catch (err) {
+    showError(err.message);
+  }
+});
+
+// --- MOT CROISE ---
+$('btn-guess-secret').addEventListener('click', async () => {
+  const guess = $('mc-secret-input').value.trim();
+  if (!guess) { showError('Entrez un mot'); return; }
+  try {
+    const res = await emitWithCallback('guessSecretWord', { gameId: currentGameId, guess });
+    if (res.correct) {
+      showError('🎉 Mot secret trouvé ! +500 pts');
+      $('mc-secret-input').value = '';
+    } else {
+      showError('Mot secret incorrect');
+      $('mc-secret-input').value = '';
+    }
+  } catch (err) {
+    showError(err.message);
+  }
+});
+
+$('btn-finish-game').addEventListener('click', async () => {
+  try {
+    await emitWithCallback('finishGame', { gameId: currentGameId });
   } catch (err) {
     showError(err.message);
   }
@@ -353,6 +395,7 @@ async function tryReconnect() {
 const GAME_NAMES = {
   'la-t-abuses': '🎲 Là t\'abuses !',
   'le-toz': '🃏 Le Toz',
+  'mot-croise': '🧩 Mot Croisé Gaming',
 };
 
 // --- RENDER LOBBY ---
@@ -396,19 +439,31 @@ function renderGame(state) {
 
   $('game-title').textContent = GAME_NAMES[state.gameType] || 'Là t\'abuses !';
 
+  const isMc = state.gameType === 'mot-croise';
+
   if (state.gameType === 'le-toz') {
     renderLeToz(state);
     $('la-tabuses-content').classList.add('hidden');
     $('le-toz-content').classList.remove('hidden');
+    $('mot-croise-content').classList.add('hidden');
+  } else if (isMc) {
+    renderMotCroise(state);
+    $('la-tabuses-content').classList.add('hidden');
+    $('le-toz-content').classList.add('hidden');
+    $('mot-croise-content').classList.remove('hidden');
   } else {
     renderLaTabuses(state);
     $('le-toz-content').classList.add('hidden');
+    $('mot-croise-content').classList.add('hidden');
     $('la-tabuses-content').classList.remove('hidden');
   }
 
+  const pokerTable = document.querySelector('.poker-table');
+  if (pokerTable) pokerTable.classList.toggle('hidden', isMc);
+
   $('threshold-display').textContent = state.penaltyThreshold ? `Limite ${state.penaltyThreshold} pts` : '·';
 
-  renderTable(state, state.turnOrder[state.currentTurnIndex]);
+  if (!isMc) renderTable(state, state.turnOrder[state.currentTurnIndex]);
 
   $('btn-leave-game').classList.remove('hidden');
 
@@ -504,6 +559,9 @@ function renderLaTabuses(state) {
   }
 }
 
+const TIER_LABELS = ['Familial', 'Amis', 'Croustillant', 'Hot', 'Extrême'];
+const TIER_EMOJIS = ['🟢', '🟡', '🟠', '🔴', '🟣'];
+
 function renderLeToz(state) {
   const card = state.currentCard;
   const isHost = myPlayerId === state.hostId;
@@ -513,8 +571,24 @@ function renderLeToz(state) {
 
     $('toz-type').textContent = card.type === 'verite' ? 'Vérité' : 'Action';
     $('toz-type').className = 'toz-type ' + card.type;
-    $('toz-player').textContent = player ? (player.avatar || '') + ' ' + player.name : '';
+
     $('toz-text').textContent = card.text;
+
+    if (player) {
+      $('toz-player').textContent = (player.avatar || '🃏') + ' ' + player.name;
+      $('toz-player').classList.remove('hidden');
+    } else {
+      $('toz-player').classList.add('hidden');
+    }
+
+    if (card.tier !== undefined) {
+      const tier = card.tier;
+      $('toz-tier-badge').textContent = TIER_EMOJIS[tier] + ' ' + TIER_LABELS[tier];
+      $('toz-tier-badge').className = 'toz-tier-badge toz-tier-' + tier;
+      $('toz-tier-badge').classList.remove('hidden');
+    } else {
+      $('toz-tier-badge').classList.add('hidden');
+    }
 
     $('btn-toz-draw').classList.add('hidden');
     if (state.isSolo) {
@@ -532,7 +606,9 @@ function renderLeToz(state) {
   } else {
     $('toz-type').textContent = '';
     $('toz-type').className = 'toz-type';
+    $('toz-player').classList.add('hidden');
     $('toz-player').textContent = '';
+    $('toz-tier-badge').classList.add('hidden');
     $('toz-text').textContent = 'Prêt à piocher ?';
     $('toz-sips').classList.add('hidden');
 
@@ -543,6 +619,144 @@ function renderLeToz(state) {
     }
     $('btn-toz-next').classList.add('hidden');
   }
+}
+
+// --- RENDER MOT CROISE ---
+function renderMotCroise(state) {
+  if (mcTimerInterval) { clearInterval(mcTimerInterval); mcTimerInterval = null; }
+
+  const player = state.players.find(p => p.id === myPlayerId);
+  if (!player || !player.grid) return;
+
+  const grid = player.grid;
+  const completed = player.completedWords || [];
+
+  renderMotCroiseGrid(grid, completed);
+  renderMotCroiseDefinitions(grid, completed);
+
+  $('mc-score').textContent = '🏆 ' + player.score + ' pts';
+  $('mc-progress-text').textContent = completed.length + ' / ' + grid.totalWords + ' mots trouvés';
+
+  const secretArea = $('mc-secret-area');
+  const revealCount = (grid.secretCells || []).filter(c => c.revealed).length;
+  const totalSecret = (grid.secretCells || []).length;
+
+  if (player.secretGuessed) {
+    secretArea.classList.remove('hidden');
+    $('mc-secret-letters').innerHTML = '<div class="mc-secret-found">✅ Mot secret trouvé ! +500 pts</div>';
+    $('mc-secret-input').disabled = true;
+    $('btn-guess-secret').disabled = true;
+  } else if (revealCount > 0) {
+    secretArea.classList.remove('hidden');
+    const letters = grid.secretCells.map((c, i) =>
+      `<span class="mc-secret-letter ${c.revealed ? 'revealed' : 'hidden-letter'}">${c.revealed ? escapeHtml(c.letter) : '?'}</span>`
+    ).join('');
+    $('mc-secret-letters').innerHTML = 'Lettres révélées : ' + letters + ' (' + revealCount + '/' + totalSecret + ')';
+    $('mc-secret-input').disabled = false;
+    $('btn-guess-secret').disabled = false;
+  } else {
+    secretArea.classList.add('hidden');
+  }
+
+  updateMcTimer(state);
+  mcTimerInterval = setInterval(() => updateMcTimer(state), 1000);
+}
+
+function renderMotCroiseGrid(grid, completed) {
+  const table = $('mc-grid');
+  const cellWords = {};
+
+  grid.words.forEach(w => {
+    for (let i = 0; i < w.answerLength; i++) {
+      const r = w.isAcross ? w.row : w.row + i;
+      const c = w.isAcross ? w.col + i : w.col;
+      cellWords[r + ',' + c] = { wordIndex: w.wordIndex, offset: i };
+    }
+  });
+
+  const completedSet = new Set(completed);
+  let html = '';
+  for (let r = 0; r < grid.grid.length; r++) {
+    html += '<tr>';
+    for (let c = 0; c < grid.grid[r].length; c++) {
+      const cell = grid.grid[r][c];
+      if (cell.isBlocked) {
+        html += '<td class="mc-cell blocked"></td>';
+      } else {
+        const cw = cellWords[r + ',' + c];
+        let letter = '';
+        let isCompleted = false;
+        if (cw && completedSet.has(cw.wordIndex)) {
+          isCompleted = true;
+          const word = grid.words.find(w => w.wordIndex === cw.wordIndex);
+          if (word) {
+            const ans = localWordAnswers[cw.wordIndex];
+            if (ans) letter = ans[cw.offset] || '';
+          }
+        }
+        const num = cell.number ? `<span class="mc-cell-num">${cell.number}</span>` : '';
+        html += `<td class="mc-cell ${isCompleted ? 'completed' : ''}">${num}<span class="mc-cell-letter">${letter ? escapeHtml(letter) : ''}</span></td>`;
+      }
+    }
+    html += '</tr>';
+  }
+  table.innerHTML = html;
+}
+
+function renderMotCroiseDefinitions(grid, completed) {
+  const container = $('mc-definitions');
+  const completedSet = new Set(completed);
+
+  container.innerHTML = grid.words.map(w => {
+    const done = completedSet.has(w.wordIndex);
+    return `
+      <div class="mc-def ${done ? 'completed' : ''}" data-word-index="${w.wordIndex}">
+        <span class="mc-def-num">${w.number}</span>
+        <div class="mc-def-body">
+          <div class="mc-def-clue">${escapeHtml(w.clue)} <span class="mc-def-length">(${w.answerLength})</span></div>
+          <div class="mc-def-input-row ${done ? 'hidden' : ''}">
+            <input type="text" class="mc-def-input" maxlength="${w.answerLength}" placeholder="Réponse...">
+            <button class="btn btn-success btn-small btn-submit-word">✓</button>
+          </div>
+          ${done ? '<div class="mc-def-done">✅ Trouvé</div>' : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  container.querySelectorAll('.btn-submit-word').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      const def = e.target.closest('.mc-def');
+      const input = def.querySelector('.mc-def-input');
+      const wordIndex = parseInt(def.dataset.wordIndex);
+      const answer = input.value.trim();
+      if (!answer) return;
+      try {
+        const res = await emitWithCallback('submitWord', { gameId: currentGameId, wordIndex, answer });
+        if (res.correct) {
+          localWordAnswers[wordIndex] = answer.toUpperCase().trim();
+          input.value = '';
+        } else {
+          showError('Mot incorrect, réessayez');
+          input.value = '';
+          input.focus();
+        }
+      } catch (err) {
+        showError(err.message);
+      }
+    });
+  });
+}
+
+function updateMcTimer(state) {
+  if (!state.startTime) return;
+  const elapsed = Math.floor((Date.now() - state.startTime) / 1000);
+  const remaining = Math.max(0, state.timeLimit - elapsed);
+  const min = Math.floor(remaining / 60);
+  const sec = remaining % 60;
+  const timerEl = $('mc-timer');
+  timerEl.textContent = '⏱ ' + min + ':' + String(sec).padStart(2, '0');
+  timerEl.style.color = remaining < 60 ? '#ff1744' : remaining < 120 ? '#ff9100' : '#00e676';
 }
 
 // --- RENDER TABLE (CIRCULAR) ---
@@ -656,31 +870,56 @@ function checkChallengePopup(state) {
 // --- RENDER END ---
 function renderEnd(state) {
   showScreen('end-screen');
+  if (mcTimerInterval) { clearInterval(mcTimerInterval); mcTimerInterval = null; }
 
-  const loser = state.players.reduce((a, b) => a.penaltyPoints > b.penaltyPoints ? a : b);
-  const winners = state.players.filter((p) => p.id !== loser.id);
+  const isScoreBased = state.gameType === 'mot-croise';
 
-  const lastChallengeLog = [...state.logs].reverse().find((l) => l.type === 'challenge' || l.type === 'doubleDown');
-  const lastAnswer = lastChallengeLog ? lastChallengeLog.answer : (state.currentQuestion ? state.currentQuestion.answer : null);
+  if (isScoreBased) {
+    const sorted = [...state.players].sort((a, b) => b.score - a.score);
+    const winner = sorted[0];
+    const others = sorted.slice(1);
 
-  let answerHtml = '';
-  if (lastAnswer !== null) {
-    answerHtml = `<div class="end-answer">La réponse était : <strong>${escapeHtml(String(lastAnswer))}</strong></div>`;
+    const lastLog = [...state.logs].reverse().find(l => l.type === 'secretFound' || l.type === 'gameEnded');
+
+    $('end-result').innerHTML = `
+      <h2>🏆 ${escapeHtml(winner.name)} a gagné !</h2>
+      <p>Avec ${winner.score} points</p>
+      ${lastLog && lastLog.type === 'secretFound' ? '<p>🔍 Mot secret trouvé !</p>' : ''}
+      <p>🎉 Félicitations à tous les joueurs !</p>
+    `;
+
+    $('end-scores').innerHTML = sorted.map((p, i) => `
+      <div class="player-card ${i === 0 ? 'winner' : ''}">
+        <span class="player-name">${p.avatar || '🧩'} ${escapeHtml(p.name)} ${i === 0 ? '🏆' : ''}</span>
+        <span class="player-points" style="color: #00e676">⭐ ${p.score} pts</span>
+      </div>
+    `).join('');
+  } else {
+    const loser = state.players.reduce((a, b) => a.penaltyPoints > b.penaltyPoints ? a : b);
+    const winners = state.players.filter((p) => p.id !== loser.id);
+
+    const lastChallengeLog = [...state.logs].reverse().find((l) => l.type === 'challenge' || l.type === 'doubleDown');
+    const lastAnswer = lastChallengeLog ? lastChallengeLog.answer : (state.currentQuestion ? state.currentQuestion.answer : null);
+
+    let answerHtml = '';
+    if (lastAnswer !== null) {
+      answerHtml = `<div class="end-answer">La réponse était : <strong>${escapeHtml(String(lastAnswer))}</strong></div>`;
+    }
+
+    $('end-result').innerHTML = `
+      <h2>😵 ${escapeHtml(loser.name)} a perdu !</h2>
+      <p>Avec ${loser.penaltyPoints} points de pénalité</p>
+      ${answerHtml}
+      <p>🎉 Félicitations aux gagnants : ${winners.map((w) => escapeHtml(w.name)).join(', ')}</p>
+    `;
+
+    $('end-scores').innerHTML = state.players.map((p) => `
+      <div class="player-card">
+        <span class="player-name">${p.avatar || '🦊'} ${escapeHtml(p.name)} ${p.id === loser.id ? '😵' : ''}</span>
+        <span class="player-points">⚠ ${p.penaltyPoints} pts</span>
+      </div>
+    `).join('');
   }
-
-  $('end-result').innerHTML = `
-    <h2>😵 ${escapeHtml(loser.name)} a perdu !</h2>
-    <p>Avec ${loser.penaltyPoints} points de pénalité</p>
-    ${answerHtml}
-    <p>🎉 Félicitations aux gagnants : ${winners.map((w) => escapeHtml(w.name)).join(', ')}</p>
-  `;
-
-  $('end-scores').innerHTML = state.players.map((p) => `
-    <div class="player-card">
-      <span class="player-name">${p.avatar || '🦊'} ${escapeHtml(p.name)} ${p.id === loser.id ? '😵' : ''}</span>
-      <span class="player-points">⚠ ${p.penaltyPoints} pts</span>
-    </div>
-  `).join('');
 }
 
 // --- SOCKET ---
@@ -688,6 +927,7 @@ socket.on('gameUpdate', (gameState) => {
   state = gameState;
 
   if (gameState.status === 'waiting') {
+    if (mcTimerInterval) { clearInterval(mcTimerInterval); mcTimerInterval = null; }
     showScreen('lobby-game-screen');
     renderLobby(gameState);
   } else if (gameState.status === 'playing') {
